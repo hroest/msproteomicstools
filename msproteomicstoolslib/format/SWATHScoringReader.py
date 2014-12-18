@@ -88,6 +88,9 @@ class SWATHScoringReader:
         Factory to create a new reader
         
         """
+        ALLOWED_READMETHODS = ["minimal", "gui", "complete"]
+        if not readmethod in ALLOWED_READMETHODS:
+            raise Exception("Readmethod %s not in list of supported methods %s" % (readmethod, ALLOWED_READMETHODS))
         if filetype  == "openswath": 
             return OpenSWATH_SWATHScoringReader(infiles, readmethod,
                                                 readfilter, errorHandling,
