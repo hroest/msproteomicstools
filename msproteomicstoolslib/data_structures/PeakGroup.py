@@ -206,3 +206,6 @@ class GeneralPeakGroup(PeakGroupBase):
     def setClusterID(self, clid):
         self.cluster_id_ = clid
 
+    def getClusterID(self):
+        return self.cluster_id_
+

@@ -114,7 +114,8 @@ class GeneralPrecursor(PrecursorBase):
     def get_best_peakgroup(self):
         """ Return the best peakgroup according to fdr score
         """
-        if len(self.peakgroups) == 0: return None
+        if len(self.peakgroups) == 0: 
+            return None
         best_score = self.peakgroups[0].get_fdr_score()
         result = self.peakgroups[0]
         for peakgroup in self.peakgroups:
@@ -139,6 +140,9 @@ class GeneralPrecursor(PrecursorBase):
   
     def find_closest_in_iRT(self, delta_assay_rt):
       return min(self.peakgroups, key=lambda x: abs(float(x.get_normalized_retentiontime()) - float(delta_assay_rt)))
+
+    def getClusteredPeakgroups(self):
+      return [pg for pg in self.peakgroups if pg.getClusterID() != -1]
 
 class Precursor(PrecursorBase):
     """ A set of peakgroups that belong to the same precursor in a single run.
