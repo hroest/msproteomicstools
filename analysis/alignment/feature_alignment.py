@@ -51,6 +51,31 @@ from msproteomicstoolslib.algorithms.alignment.SplineAligner import SplineAligne
 from msproteomicstoolslib.algorithms.alignment.FDRParameterEstimation import ParamEst
 from msproteomicstoolslib.algorithms.PADS.MinimumSpanningTree import MinimumSpanningTree
 
+"""
+bayesian alignment
+
+ITEGSTVSVNYASASSDR_both_0_1_none.pdf
+ produced with 
+
+    ptransfer = "equal"
+    peak_sd = 7.5
+    equal_bins_mult = 0.25
+
+xxxskip = 1  # not much happens ...
+xxxskip = 23 # 10828_IGDAANDIPTLVR_2_run0 -> single peak not so interesting
+
+xxxskip = 21 # 1095_GMVPSGASTGEHEAVELR_2_run0  -> hard case, peak streaks out (peapicker issue!!)
+xxxskip = 74 # 12521_KTDDISGVIGG_2_run0 rather nice example ...  -> only one is affected, the other is not (different certainty), h0 = 0.9
+xxxskip = 80 # secondary peak is completely removed ...  (from 1e-3 to 1e-5) -> tiny example (not so good)
+xxxskip = 96 # 1103_GNPTLEVNDNGGYFDLAPIDLADNTR_3 two well-separated peaks, posterior is adapted nicely in both cases ... -> however here it is unclear which one is correct!
+#xxxskip = 102
+xxxskip = 133
+xxxskip = 164 # 11684_ITEGSTVSVNYASASSDR_2_run0 two close peaks but we pick the right one ... with tight constraints -> with 4 eq bins, not much changes ...
+xxxskip = 176
+# xxxskip = 178 # very good peptide (around 300s)
+"""
+
+
 class AlignmentStatistics():
 
     def __init__(self): 
@@ -408,6 +433,43 @@ def estimate_aligned_fdr_cutoff(options, this_exp, multipeptides, fdr_range):
                     p.unselect_all()
             return aligned_fdr_cutoff
 
+def doBayes_collect_pg_data(mpep, h0, posteriors, x, min_rt, max_rt, bins, peak_sd, dt):
+    """
+    Bayesian alignment step 1:
+        - collect the h0 data and the peakgroup data for all peakgroups
+    """
+    import numpy as np
+    import scipy.stats
+
+    # Collect peakgroup data across runs
+    for p in mpep.getAllPeptides(): # loop over runs
+        current_best_pg = p.get_best_peakgroup()
+        gaussians = []
+        y = np.zeros_like(x)
+        ##  print x, y
+        # sum_gaussians 
+        for pg in p.getAllPeakgroups():
+            ##print pg
+            h0_tmp = float(pg.get_value("h0_score"))
+            ##print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
+            weight = float(pg.get_value("h_score"))
+            gaussians.append( scipy.stats.norm(loc = pg.get_normalized_retentiontime() , scale = peak_sd ))
+            # y = y + (scipy.ones(len(x) ) * weight) * scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
+            # y = y + numpy.array([ elem * weight for elem in scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd ) ], np.float)
+            y = y + dt * weight * scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
+            # y = y + scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
+        ## current_best_pg.select_this_peakgroup()
+        if False:
+            print x, y
+            print sum(y)
+            print sum(y) + h0_tmp
+            print abs(max_rt - min_rt) * 0.2
+            print dt
+        f_D_r_t = y # f_{D_r}(t) posterior pdf for each run
+        posteriors[p.run.get_id()] = y
+        h0[p.run.get_id()] = h0_tmp
+        # print " == Selected peakgroup ", current_best_pg.print_out()
+
 def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
                         smoothing_method):
     """
@@ -429,6 +491,9 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     ptransfer = "gaussian"
     ptransfer = "equal"
 
+    import scipy.stats
+    import numpy as np
+
     peak_sd = 15 # 30 seconds peak (2 stdev 95 \% of all signal)
     peak_sd = 10 # 30 seconds peak (3 stdev 99.7 \% of all signal)
     # peak_sd = 7.5
@@ -438,47 +503,12 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # equal_bins_mult = 2.5 # two seems reasonable
     #equal_bins_mult = 0.25
 
+    bins = 400
+    bins = 25
+    bins = 100
 
-    """
-    ITEGSTVSVNYASASSDR_both_0_1_none.pdf
-     produced with 
-
-        ptransfer = "equal"
-        peak_sd = 7.5
-        equal_bins_mult = 0.25
-    """
-
-    ## from matplotlib import *
-
-    for i,mpep in enumerate(multipeptides):
-
-        break
-        if i < 1:
-            continue
-        print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
-        print i
-        for p in mpep.getAllPeptides(): # loop over runs
-            current_best_pg = p.get_best_peakgroup()
-            print " === run"
-            for pg in p.getAllPeakgroups():
-                print pg
-                print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
-        break
-        if i >=205: 
-            break
-
-    xxxskip = 1  # not much happens ...
-    xxxskip = 23 # 10828_IGDAANDIPTLVR_2_run0 -> single peak not so interesting
-
-    xxxskip = 21 # 1095_GMVPSGASTGEHEAVELR_2_run0  -> hard case, peak streaks out (peapicker issue!!)
-    xxxskip = 74 # 12521_KTDDISGVIGG_2_run0 rather nice example ...  -> only one is affected, the other is not (different certainty), h0 = 0.9
-    xxxskip = 80 # secondary peak is completely removed ...  (from 1e-3 to 1e-5) -> tiny example (not so good)
-    xxxskip = 96 # 1103_GNPTLEVNDNGGYFDLAPIDLADNTR_3 two well-separated peaks, posterior is adapted nicely in both cases ... -> however here it is unclear which one is correct!
-    #xxxskip = 102
-    xxxskip = 133
-    xxxskip = 164 # 11684_ITEGSTVSVNYASASSDR_2_run0 two close peaks but we pick the right one ... with tight constraints -> with 4 eq bins, not much changes ...
-    xxxskip = 176
-    # xxxskip = 178 # very good peptide (around 300s)
+    # How much should the RT window extend beyond the peak area (in %)
+    rt_window_ext = 0.2
 
     xxxskip = 192
     for pepcnt,mpep in enumerate(multipeptides):
@@ -487,62 +517,30 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             continue
 
         print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
+
+        # Compute the retention time space (min / max)
         rts = [pg.get_normalized_retentiontime()
                 for p in mpep.getAllPeptides()
                     for pg in p.getAllPeakgroups() ]
+
         min_rt = min(rts)
         max_rt = max(rts)
-        min_rt -= abs(max_rt - min_rt) * 0.2
-        max_rt += abs(max_rt - min_rt) * 0.2
-        bins = 400
-        bins = 25
-        bins = 100
-        # print "min/max", min_rt, max_rt
-        ## min_rt = 2400
-        ## max_rt = 2500
+        min_rt -= abs(max_rt - min_rt) * rt_window_ext
+        max_rt += abs(max_rt - min_rt) * rt_window_ext
 
-        import scipy.stats
-        import numpy as np
-
-        rv = scipy.stats.norm()
+        # Compute bin width (dt)
         dt = abs(max_rt - min_rt) / bins
 
+        # Compute how many bins correspond to the peak standard deviation
+        # Multiply by cross-run factor
         equal_bins = int(peak_sd / dt) + 1
         equal_bins *= equal_bins_mult
 
+        # Collect peakgroup data across runs
         h0 = {}
         posteriors = {}
         x = np.linspace(min_rt, max_rt, bins)
-        for p in mpep.getAllPeptides(): # loop over runs
-            current_best_pg = p.get_best_peakgroup()
-            gaussians = []
-            y = np.zeros_like(x)
-            ##  print x, y
-            # sum_gaussians 
-            for pg in p.getAllPeakgroups():
-                ##print pg
-                h0_tmp = float(pg.get_value("h0_score"))
-                ##print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
-                weight = float(pg.get_value("h_score"))
-                gaussians.append( scipy.stats.norm(loc = pg.get_normalized_retentiontime() , scale = peak_sd ))
-                # y = y + (scipy.ones(len(x) ) * weight) * scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
-                # y = y + numpy.array([ elem * weight for elem in scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd ) ], np.float)
-                y = y + dt * weight * scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
-                # y = y + scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
-            ## current_best_pg.select_this_peakgroup()
-            if False:
-                print x, y
-                print sum(y)
-                print sum(y) + h0_tmp
-                print abs(max_rt - min_rt) * 0.2
-                print dt
-            f_D_r_t = y # f_{D_r}(t) posterior pdf for each run
-            posteriors[p.run.get_id()] = y
-            h0[p.run.get_id()] = h0_tmp
-            # print " == Selected peakgroup ", current_best_pg.print_out()
-
-        ## print "got multiple posteriors", posteriors
-        # print "got multiple posteriors"
+        doBayes_collect_pg_data(mpep, h0, posteriors, x, min_rt, max_rt, bins, peak_sd, dt)
 
         for p in mpep.getAllPeptides(): # loop over runs
             current_best_pg = p.get_best_peakgroup()
