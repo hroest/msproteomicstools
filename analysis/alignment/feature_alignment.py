@@ -408,6 +408,13 @@ def estimate_aligned_fdr_cutoff(options, this_exp, multipeptides, fdr_range):
                     p.unselect_all()
             return aligned_fdr_cutoff
 
+def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
+                        smoothing_method):
+    """
+    Bayesian alignment
+    """
+    return
+    
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
                    fdr_cutoff, aligned_fdr_cutoff, smoothing_method, method,
                    use_RT_correction, stdev_max_rt_per_run, use_local_stdev):
@@ -639,7 +646,14 @@ def main(options):
     if options.target_fdr > 0:
         multipeptides = doParameterEstimation(options, this_exp, multipeptides)
 
-    if options.method == "LocalMST" or options.method == "LocalMSTAllCluster":
+    if options.method == "Bayesian":
+        stdev_max_rt_per_run = None
+        start = time.time()
+        doBayesianAlignment(this_exp, multipeptides, float(options.rt_diff_cutoff), 
+                       float(options.alignment_score), 
+                       options.realign_method) 
+        print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
+    elif options.method == "LocalMST" or options.method == "LocalMSTAllCluster":
         start = time.time()
         if options.mst_stdev_max_per_run > 0:
             stdev_max_rt_per_run = options.mst_stdev_max_per_run
