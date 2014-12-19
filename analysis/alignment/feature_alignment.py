@@ -534,6 +534,37 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
 
     return tmp_prod
 
+def doPlotStuff(x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
+    """
+    Helper function to plot stuff 
+    """
+    ## print "sum", sum(B_m)
+    ## print "sum prior", sum(run_likelihood[m])
+    ## print "sum over all other runs", sum(p_D_no_m)
+    print "B_{%s} forall j" % (m), B_m
+    print "(B_{%s} |D) forall j normalized" % (m), B_m
+    print "(B_{%s} |D_m) forall j normalized" % (m), run_likelihood[m]
+    ### print "MAP before at ", x[max_prior]
+    ### print "MAP now at ", x[max_post]
+    ### print "  --> ", x[max_post] - 0.5*dt , " to ", x[max_post] + 0.5*dt
+    ###
+    # Plot ? 
+    import pylab
+    pylab.plot(x, run_likelihood[m])
+    pylab.savefig('prior_%s.pdf' % m )
+    pylab.clf()
+    pylab.plot(x, B_m)
+    print '%s' % m
+    pylab.savefig('post_%s.pdf' % m )
+    pylab.clf()
+    pylab.plot(x, run_likelihood[m], label="prior")
+    pylab.plot(x, B_m, label="posterior")
+    pylab.plot(x, p_D_no_m, label="likelihood (other runs)")
+    #pylab.legend(loc= "upper left")
+    pylab.legend(loc= "upper right")
+    pylab.savefig('both_%s.pdf' % m )
+
+
 def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
                         smoothing_method):
     """
@@ -657,48 +688,10 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             max_prior = max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])[1]
             max_post = max([ [xx,i] for i,xx in enumerate(B_m)])[1]
 
-            if True:
-                # print "B_{%s} forall j" % (m), B_m
-                ## print "sum", sum(B_m)
-                ## print "sum prior", sum(run_likelihood[m])
-                ## print "sum over all other runs", sum(p_D_no_m)
-                # print "(B_{%s} |D) forall j normalized" % (m), B_m
-                # print "(B_{%s} |D_m) forall j normalized" % (m), run_likelihood[m]
-                ### print "MAP before at ", x[max_prior]
-                ### print "MAP now at ", x[max_post]
-                ### print "  --> ", x[max_post] - 0.5*dt , " to ", x[max_post] + 0.5*dt
-                ###
-                ###
-                # Plot ? 
-                import pylab
-                pylab.plot(x, run_likelihood[m])
-                pylab.savefig('prior_%s.pdf' % m )
-                pylab.clf()
-                pylab.plot(x, B_m)
-                print '%s' % m
-                pylab.savefig('post_%s.pdf' % m )
-                pylab.clf()
-                pylab.plot(x, run_likelihood[m], label="prior")
-                pylab.plot(x, B_m, label="posterior")
-                pylab.plot(x, p_D_no_m, label="likelihood (other runs)")
-                #pylab.legend(loc= "upper left")
-                pylab.legend(loc= "upper right")
-                pylab.savefig('both_%s.pdf' % m )
+            doPlotStuff(x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post)
 
-            ## # Check all pg again
-            ## for pg in p.getAllPeakgroups():
-            ##     break
-            ##     print pg
-            ##     print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
-            ##     print "  left ", pg.get_value("leftWidth"),  "right", pg.get_value("rightWidth")
-            ##     left = float(pg.get_value("leftWidth"))
-            ##     right = float(pg.get_value("rightWidth"))
-            ##     tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
-            ##     print tmp
-            ##     print "probsum", sum([xx[1] for xx in tmp])
-            ##     #pg.set_value("probsum", sum([xx[1] for xx in tmp]))
-            ##     pg.set_value("var_elution_model_fit_score", sum([xx[1] for xx in tmp]))
-
+            # Step 2.3.5 : Select best peakgroup
+            #              
             for pg in p.getAllPeakgroups():
                 left = float(pg.get_value("leftWidth"))
                 right = float(pg.get_value("rightWidth"))
@@ -711,7 +704,6 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             print "best peak", best_psum[1], "with sum", best_psum[0]
             best_psum[1].select_this_peakgroup()
                 
-
         print "new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
         if pepcnt >=xxxskip: 
             break
