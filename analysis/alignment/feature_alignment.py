@@ -472,14 +472,29 @@ def doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, p
         # print " == Selected peakgroup ", current_best_pg.print_out()
 
 def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, peak_sd, bins,
-                                ptransfer, equal_bins):
+                                ptransfer, transfer_width):
     """
-    Bayesian collect data for product part of the formula
+    Bayesian computation of the contribution of all other runs to the probability
+
+    Loops over all runs r to compute the probabilities, for each run:
+        - (i) RT transfer from source to target r
+        - (ii) Compute  p(D_r|B_{jm} ) = \sum_{q=1}^{k} p(D_r | B_{qr} ) * p(B_{qr}|B_{jm})
+        - (iii) Compute  transition probability p(B_{qr}|B_{jm} )
+
+    For step (iii), there are different options available how to compute the
+    transition probability p(B_{qr}|B_{jm}), see ptransfer option:
+        - all: the best bin gets all the probability
+        - equal: all bins around the best bin get equal probability
+        - gaussian: probability is distributed according to a gaussian
+
     """
 
     import scipy.stats
 
-    tmp_prod = 1.0
+    dt = (max(x) - min(x)) / len(x)
+    equal_bins = int(transfer_width / dt) + 1
+
+    prod_acc = 1.0
     # \prod
     # r = 1 \ m to n
     for rloop in mpep.getAllPeptides(): # loop over runs
@@ -488,12 +503,11 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
             continue
         f_D_r = run_likelihood[r]
 
-        # transform RT
-        # source RT is in space of run m
+        # (i) transform the retention time from the source run (m) to the one
+        #     of the target run (r) and find the matching bin in run r
         source = m
         target = r
         expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
-        dt = (max(x) - min(x)) / len(x)
         matchbin = int((expected_rt - min(x)) / dt )
 
         # If verbose
@@ -501,18 +515,24 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
             print "convert from", source, " to ", target
             print "predict for ", x[j]
             print "results in ", expected_rt
-            print "matching bin: ", min(t_tmp)
-            print "matching bin: ", min(t_tmp)[1]
             print x[matchbin]
+            print min(x)
+            print max(x)
+            print len(x)
+            print "best bin", int((expected_rt - min(x)) / dt )
 
+        # (ii) Compute p(D_r|B_{jm} = \sum_{q=1}^{k} p(D_r | B_{qr} ) * p(B_{qr}|B_{jm}
+        #      This is a sum over all bins of the target run r
         p_Dr_Bjm = 0 # p(D_r|B_{jm})
         # \sum 
         # q = 1 to k
         for q in xrange(bins):
-            #### print "bin q", q, "delta matchbin", abs(q-matchbin)
 
-            # Probability of bin q (run r) given that the analyte
-            # is actually in bin j (run m): p_Bqr_Bjm
+            # (iii) Compute transition probability between runs, e.g.
+            #       p(B_{qr}|B_{jm} which is the probability of the analyte
+            #       being in bin q (of run r) given that the analyte is
+            #       actually in bin j (of run m): p_Bqr_Bjm
+            #       Initially set to zero
             p_Bqr_Bjm = 0
             if ptransfer == "all":
                 if q == matchbin:
@@ -520,8 +540,19 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
             elif ptransfer == "equal":
                 if abs(q - matchbin) < equal_bins:
                     p_Bqr_Bjm = 0.5 / equal_bins
+            elif ptransfer == "bartlett":
+                if abs(q - matchbin) < equal_bins:
+                    # height of the triangle
+                    height = 1.0 / equal_bins
+                    # height of normalized window
+                    dy = (1.0 * equal_bins - abs(q - matchbin) ) / equal_bins
+                    p_Bqr_Bjm = dy * height
             elif ptransfer == "gaussian":
-                p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = 2.0*peak_sd )
+                p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = transfer_width)
+
+            # (iv) multiply f_{D_r}(t_q) with the transition probability
+
+            # print "Got here for bin %s a value %s * %s = %s"  %(q, f_D_r[q], p_Bqr_Bjm, f_D_r[q] * p_Bqr_Bjm)
             p_Dr_Bjm += f_D_r[q] * p_Bqr_Bjm
 
         ## print "all sum", p_Dr_Bjm
@@ -531,27 +562,29 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
         #p_present = 1.0
         #p_absent = 0.0
         # use correct formula from last page
-        tmp_prod *= p_present * p_Dr_Bjm + p_absent / bins 
+        prod_acc *= p_present * p_Dr_Bjm + p_absent / bins 
         ## print "add for bin", p_present * p_Dr_Bjm + p_absent / bins 
 
-    return tmp_prod
+    return prod_acc
 
-def doPlotStuff(x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
+def doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
     """
     Helper function to plot stuff 
     """
     ## print "sum", sum(B_m)
     ## print "sum prior", sum(run_likelihood[m])
     ## print "sum over all other runs", sum(p_D_no_m)
-    print "B_{%s} forall j" % (m), B_m
-    print "(B_{%s} |D) forall j normalized" % (m), B_m
-    print "(B_{%s} |D_m) forall j normalized" % (m), run_likelihood[m]
-    ### print "MAP before at ", x[max_prior]
-    ### print "MAP now at ", x[max_post]
-    ### print "  --> ", x[max_post] - 0.5*dt , " to ", x[max_post] + 0.5*dt
-    ###
+    if False:
+        print "B_{%s} forall j" % (m), B_m
+        print "(B_{%s} |D) forall j normalized" % (m), B_m
+        print "(B_{%s} |D_m) forall j normalized" % (m), run_likelihood[m]
+        print "MAP before at ", x[max_prior]
+        print "MAP now at ", x[max_post]
+        print "  --> ", x[max_post] - 0.5*dt , " to ", x[max_post] + 0.5*dt
+        ###
     # Plot ? 
     import pylab
+    pepid = mpep.getAllPeptides()[0].get_id()
     pylab.plot(x, run_likelihood[m])
     pylab.savefig('prior_%s.pdf' % m )
     pylab.clf()
@@ -564,33 +597,29 @@ def doPlotStuff(x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
     pylab.plot(x, p_D_no_m, label="likelihood (other runs)")
     #pylab.legend(loc= "upper left")
     pylab.legend(loc= "upper right")
+    pylab.title(pepid)
+    pylab.xlabel("RT")
     pylab.savefig('both_%s.pdf' % m )
 
 
 def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
-                        smoothing_method):
+                        smoothing_method, doPlot=True):
     """
     Bayesian alignment
     """
     
     ptransfer = "all"
-    ptransfer = "gaussian"
-    ptransfer = "equal"
+    ptransfer = "equal" # boxcar / rectangle
+    ptransfer = "bartlett" #triangular
+    ptransfer = "gaussian" # gaussian window
 
     import scipy.stats
     import numpy as np
 
     peak_sd = 15 # 30 seconds peak (2 stdev 95 \% of all signal)
     peak_sd = 10 # 30 seconds peak (3 stdev 99.7 \% of all signal)
-    # peak_sd = 7.5
-    # peak_sd = 5
-    equal_bins_mult = 2.0 # two seems reasonable
-    equal_bins_mult = 4.0 # two seems reasonable
-    # equal_bins_mult = 2.5 # two seems reasonable
-    #equal_bins_mult = 0.25
+    transfer_width = peak_sd * 2.5
 
-    bins = 400
-    bins = 25
     bins = 100
 
     # How much should the RT window extend beyond the peak area (in %)
@@ -599,6 +628,7 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Step 1 : Get alignments (all against all)
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    start = time.time()
     spl_aligner = SplineAligner(initial_alignment_cutoff)
     tr_data = LightTransformationData()
     for r1 in exp.runs:
@@ -607,15 +637,15 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
                            spl_aligner, multipeptides, smoothing_method,
                            max_rt_diff)
 
+    print("Compute pairwise alignments took %0.2fs" % (time.time() - start) )
+    start = time.time()
 
-    xxxskip = 192
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Step 2 : Iterate through all peptides
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     for pepcnt,mpep in enumerate(multipeptides):
 
-        if pepcnt < xxxskip:
-            continue
+        pepid = mpep.getAllPeptides()[0].get_id()
 
         print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
 
@@ -630,13 +660,10 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
         min_rt -= abs(max_rt - min_rt) * rt_window_ext
         max_rt += abs(max_rt - min_rt) * rt_window_ext
 
+        print min_rt, max_rt
+
         # Compute bin width (dt)
         dt = abs(max_rt - min_rt) / bins
-
-        # Compute how many bins correspond to the peak standard deviation
-        # Multiply by cross-run factor
-        equal_bins = int(peak_sd / dt) + 1
-        equal_bins *= equal_bins_mult
 
         # Step 2.2 : Collect peakgroup data across runs
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -662,7 +689,7 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             p_D_no_m = []
             for j in xrange(bins):
 
-                tmp_prod = doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, peak_sd, bins, ptransfer, equal_bins)
+                tmp_prod = doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, peak_sd, bins, ptransfer, transfer_width)
 
                 p_D_no_m.append(tmp_prod)
                 B_jm = f_D_m[j]  * p_B_jm * tmp_prod # f_{D_m}(t_j) * p(B{jm}) * ... 
@@ -690,7 +717,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             max_prior = max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])[1]
             max_post = max([ [xx,i] for i,xx in enumerate(B_m)])[1]
 
-            doPlotStuff(x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post)
+            if doPlot:
+                doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post)
 
             # Step 2.3.5 : Select best peakgroup
             #              
@@ -706,9 +734,9 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             print "best peak", best_psum[1], "with sum", best_psum[0]
             best_psum[1].select_this_peakgroup()
                 
-        print "new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
-        if pepcnt >=xxxskip: 
-            break
+        print "peptide (bayes)", mpep.getAllPeptides()[0].get_id()
+
+    print("Bayesian alignment took %0.2fs" % (time.time() - start) )
 
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
                    fdr_cutoff, aligned_fdr_cutoff, smoothing_method, method,
