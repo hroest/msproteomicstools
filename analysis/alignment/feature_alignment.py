@@ -433,11 +433,12 @@ def estimate_aligned_fdr_cutoff(options, this_exp, multipeptides, fdr_range):
                     p.unselect_all()
             return aligned_fdr_cutoff
 
-def doBayes_collect_pg_data(mpep, h0, posteriors, x, min_rt, max_rt, bins, peak_sd, dt):
+def doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, peak_sd, dt):
     """
     Bayesian alignment step 1:
         - collect the h0 data and the peakgroup data for all peakgroups
     """
+
     import numpy as np
     import scipy.stats
 
@@ -466,9 +467,72 @@ def doBayes_collect_pg_data(mpep, h0, posteriors, x, min_rt, max_rt, bins, peak_
             print abs(max_rt - min_rt) * 0.2
             print dt
         f_D_r_t = y # f_{D_r}(t) posterior pdf for each run
-        posteriors[p.run.get_id()] = y
+        run_likelihood[p.run.get_id()] = y
         h0[p.run.get_id()] = h0_tmp
         # print " == Selected peakgroup ", current_best_pg.print_out()
+
+def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, peak_sd, bins,
+                                ptransfer, equal_bins):
+    """
+    Bayesian collect data for product part of the formula
+    """
+
+    import scipy.stats
+
+    tmp_prod = 1.0
+    # \prod
+    # r = 1 \ m to n
+    for rloop in mpep.getAllPeptides(): # loop over runs
+        r = rloop.run.get_id()
+        if r == m:
+            continue
+        f_D_r = run_likelihood[r]
+
+        # transform RT
+        # source RT is in space of run m
+        source = m
+        target = r
+        expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
+        t_tmp = [ [abs(xx - expected_rt),i] for i,xx in enumerate(x)]
+        matchbin = min(t_tmp)[1]
+        if False:
+            print "convert from", source, " to ", target
+            print "predict for ", x[j]
+            print "results in ", expected_rt
+            print "matching bin: ", min(t_tmp)
+            print "matching bin: ", min(t_tmp)[1]
+            print x[matchbin]
+
+        p_Dr_Bjm = 0 # p(D_r|B_{jm})
+        # \sum 
+        # q = 1 to k
+        for q in xrange(bins):
+            #### print "bin q", q, "delta matchbin", abs(q-matchbin)
+
+            # Probability of bin q (run r) given that the analyte
+            # is actually in bin j (run m): p_Bqr_Bjm
+            p_Bqr_Bjm = 0
+            if ptransfer == "all":
+                if q == matchbin:
+                    p_Bqr_Bjm = 1
+            elif ptransfer == "equal":
+                if abs(q - matchbin) < equal_bins:
+                    p_Bqr_Bjm = 0.5 / equal_bins
+            elif ptransfer == "gaussian":
+                p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = 2.0*peak_sd )
+            p_Dr_Bjm += f_D_r[q] * p_Bqr_Bjm
+
+        ## print "all sum", p_Dr_Bjm
+        ## print "h0 here", h0[r]
+        p_absent = h0[r]
+        p_present = 1-h0[r]
+        #p_present = 1.0
+        #p_absent = 0.0
+        # use correct formula from last page
+        tmp_prod *= p_present * p_Dr_Bjm + p_absent / bins 
+        ## print "add for bin", p_present * p_Dr_Bjm + p_absent / bins 
+
+    return tmp_prod
 
 def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
                         smoothing_method):
@@ -476,17 +540,6 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     Bayesian alignment
     """
     
-    # Get alignments
-    spl_aligner = SplineAligner(initial_alignment_cutoff)
-    tr_data = LightTransformationData()
-    for r1 in exp.runs:
-        for r2 in exp.runs:
-            addDataToTrafo(tr_data, r1, r2,
-                           spl_aligner, multipeptides, smoothing_method,
-                           max_rt_diff)
-
-    print "here"
-    print "here done"
     ptransfer = "all"
     ptransfer = "gaussian"
     ptransfer = "equal"
@@ -510,7 +563,22 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # How much should the RT window extend beyond the peak area (in %)
     rt_window_ext = 0.2
 
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    # Step 1 : Get alignments (all against all)
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    spl_aligner = SplineAligner(initial_alignment_cutoff)
+    tr_data = LightTransformationData()
+    for r1 in exp.runs:
+        for r2 in exp.runs:
+            addDataToTrafo(tr_data, r1, r2,
+                           spl_aligner, multipeptides, smoothing_method,
+                           max_rt_diff)
+
+
     xxxskip = 192
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    # Step 2 : Iterate through all peptides
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     for pepcnt,mpep in enumerate(multipeptides):
 
         if pepcnt < xxxskip:
@@ -518,7 +586,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
 
         print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
 
-        # Compute the retention time space (min / max)
+        # Step 2.1 : Compute the retention time space (min / max)
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
         rts = [pg.get_normalized_retentiontime()
                 for p in mpep.getAllPeptides()
                     for pg in p.getAllPeakgroups() ]
@@ -536,144 +605,99 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
         equal_bins = int(peak_sd / dt) + 1
         equal_bins *= equal_bins_mult
 
-        # Collect peakgroup data across runs
+        # Step 2.2 : Collect peakgroup data across runs
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
         h0 = {}
-        posteriors = {}
+        run_likelihood = {}
         x = np.linspace(min_rt, max_rt, bins)
-        doBayes_collect_pg_data(mpep, h0, posteriors, x, min_rt, max_rt, bins, peak_sd, dt)
+        doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, peak_sd, dt)
 
-        for p in mpep.getAllPeptides(): # loop over runs
-            current_best_pg = p.get_best_peakgroup()
-            # print "-------------------------"
-            # print " run ", p.run
-            # print " m = ", p.run
+        # Step 2.3 : Loop over all runs for this peptide 
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+        for p in mpep.getAllPeptides():
             m = p.run.get_id()
-            f_D_m = posteriors[ p.run.get_id() ] # f_{D_r}(t) posterior pdf for run m
+
+            # Step 2.3.1 : obtain likelihood f_{D_m}(t) for current run m and prior p(B_{jm})
+            f_D_m = run_likelihood[ p.run.get_id() ] # f_{D_m}(t) likelihood pdf for run m
             p_B_jm = 1.0/bins # prior p(B_{jm})
+
+            # Step 2.3.2 : compute product over all runs (obtain likelihood
+            #              p(D_r | B_{jm}) for all bins j over all runs r in
+            #              the data (except run m).
+            #              Store p(D | B_{jm}) in vector B_m for all values of j
             B_m = []
             p_D_no_m = []
             for j in xrange(bins):
-                tmp_prod = 1.0
-                # \prod
-                # r = 1 \ m to n
-                for rloop in mpep.getAllPeptides(): # loop over runs
-                    r = rloop.run.get_id()
-                    if r == m:
-                        continue
-                    f_D_r = posteriors[r]
 
+                tmp_prod = doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, peak_sd, bins, ptransfer, equal_bins)
 
-                    # transform RT
-                    # source RT is in space of run m
-                    source = m
-                    target = r
-                    #source = r
-                    #target = m
-                    expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
-                    t_tmp = [ [abs(xx - expected_rt),i] for i,xx in enumerate(x)]
-                    matchbin = min(t_tmp)[1]
-                    if False:
-                        print "convert from", source, " to ", target
-                        print "predict for ", x[j]
-                        print "results in ", expected_rt
-                        print "matching bin: ", min(t_tmp)
-                        print "matching bin: ", min(t_tmp)[1]
-                        print x[matchbin]
-
-                    p_Dr_Bjm = 0 # p(D_r|B_{jm})
-                    # \sum 
-                    # q = 1 to k
-                    for q in xrange(bins):
-                        #### print "bin q", q, "delta matchbin", abs(q-matchbin)
-
-                        # Probability of bin q (run r) given that the analyte
-                        # is actually in bin j (run m): p_Bqr_Bjm
-                        p_Bqr_Bjm = 0
-                        if ptransfer == "all":
-                            if q == matchbin:
-                                p_Bqr_Bjm = 1
-                        elif ptransfer == "equal":
-                            if abs(q - matchbin) < equal_bins:
-                                p_Bqr_Bjm = 0.5 / equal_bins
-                        elif ptransfer == "gaussian":
-                            # print "gauss"
-                            p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = 2.0*peak_sd )
-                            # print p_Bqr_Bjm 
-                            # print x[q] , expected_rt
-                        p_Dr_Bjm += f_D_r[q] * p_Bqr_Bjm
-                        ### print "compute ", f_D_r[q] , " * ",  p_Bqr_Bjm ,  " = ", f_D_r[q] * p_Bqr_Bjm, "(for ", x[q],")"
-                    ## print "all sum", p_Dr_Bjm
-                    ## print "h0 here", h0[r]
-                    p_absent = h0[r]
-                    p_present = 1-h0[r]
-                    #p_present = 1.0
-                    #p_absent = 0.0
-                    # use correct formula from last page
-                    tmp_prod *= p_present * p_Dr_Bjm + p_absent / bins 
-                    ## print "add for bin", p_present * p_Dr_Bjm + p_absent / bins 
-                ### print "all prod", tmp_prod
                 p_D_no_m.append(tmp_prod)
-                # print "tmp_prod_", tmp_prod, "bin", j
-                B_jm = f_D_m[j]  * p_B_jm * tmp_prod # f_{D_m}(t_j) * p(B{jm} * ... 
-                ## print " h0m correction", 1- h0[m]
+                B_jm = f_D_m[j]  * p_B_jm * tmp_prod # f_{D_m}(t_j) * p(B{jm}) * ... 
+
+                ### TODO
                 # correction for h_0 hypothesis according to (35), right before chapter E
                 # may be omitted for computational reasons since it does not change the result
-                ### TODO
+                # -> everything gets normalized afterwards anywys ... 
                 ### B_jm *= 1-h0[m]
-                ### print "B_{%s %s} " % (j, m), B_jm
+
                 B_m.append(B_jm)
 
-            print "==========================================================================="
-            # print "B_{%s} forall j" % (m), B_m
-            ## print "sum", sum(B_m)
-            ## print "sum prior", sum(posteriors[m])
-            ## print "sum over all other runs", sum(p_D_no_m)
+            # Step 2.3.3 : Compute p(B_{jm} | D) using Bayes formula from the
+            #              values p(D| B_{jm}), p(B_{jm}) and p(D). p(D) is
+            #              computed by the sum over the array B_m (prior p_B_jm
+            #              is already added above).
             B_m /= sum(B_m)
             ### TODO correct here for H0 ? 
             B_m *= 1-h0[m]
-            #
-            # print "(B_{%s} |D) forall j normalized" % (m), B_m
-            # print "(B_{%s} |D_m) forall j normalized" % (m), posteriors[m]
+
+            # Step 2.3.4 : Compute maximal posterior and plot data
+            #              
             print "MAP (B_m|D)", max([ [xx,i] for i,xx in enumerate(B_m)])
-            print "MAP (B_m|D_m)", max([ [xx,i] for i,xx in enumerate(posteriors[m])])
-            max_prior = max([ [xx,i] for i,xx in enumerate(posteriors[m])])[1]
+            print "MAP (B_m|D_m)", max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])
+            max_prior = max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])[1]
             max_post = max([ [xx,i] for i,xx in enumerate(B_m)])[1]
-            ### print "MAP before at ", x[max_prior]
-            ### print "MAP now at ", x[max_post]
-            ### print "  --> ", x[max_post] - 0.5*dt , " to ", x[max_post] + 0.5*dt
-            ###
-            ###
+
             if True:
+                # print "B_{%s} forall j" % (m), B_m
+                ## print "sum", sum(B_m)
+                ## print "sum prior", sum(run_likelihood[m])
+                ## print "sum over all other runs", sum(p_D_no_m)
+                # print "(B_{%s} |D) forall j normalized" % (m), B_m
+                # print "(B_{%s} |D_m) forall j normalized" % (m), run_likelihood[m]
+                ### print "MAP before at ", x[max_prior]
+                ### print "MAP now at ", x[max_post]
+                ### print "  --> ", x[max_post] - 0.5*dt , " to ", x[max_post] + 0.5*dt
+                ###
+                ###
                 # Plot ? 
                 import pylab
-                pylab.plot(x, posteriors[m])
+                pylab.plot(x, run_likelihood[m])
                 pylab.savefig('prior_%s.pdf' % m )
                 pylab.clf()
                 pylab.plot(x, B_m)
                 print '%s' % m
                 pylab.savefig('post_%s.pdf' % m )
                 pylab.clf()
-                pylab.plot(x, posteriors[m], label="prior")
+                pylab.plot(x, run_likelihood[m], label="prior")
                 pylab.plot(x, B_m, label="posterior")
                 pylab.plot(x, p_D_no_m, label="likelihood (other runs)")
                 #pylab.legend(loc= "upper left")
                 pylab.legend(loc= "upper right")
                 pylab.savefig('both_%s.pdf' % m )
 
-            # Check all pg again
-            for pg in p.getAllPeakgroups():
-                break
-                print pg
-                print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
-                print "  left ", pg.get_value("leftWidth"),  "right", pg.get_value("rightWidth")
-                left = float(pg.get_value("leftWidth"))
-                right = float(pg.get_value("rightWidth"))
-                tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
-                print tmp
-                print "probsum", sum([xx[1] for xx in tmp])
-                #pg.set_value("probsum", sum([xx[1] for xx in tmp]))
-                pg.set_value("var_elution_model_fit_score", sum([xx[1] for xx in tmp]))
-
+            ## # Check all pg again
+            ## for pg in p.getAllPeakgroups():
+            ##     break
+            ##     print pg
+            ##     print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
+            ##     print "  left ", pg.get_value("leftWidth"),  "right", pg.get_value("rightWidth")
+            ##     left = float(pg.get_value("leftWidth"))
+            ##     right = float(pg.get_value("rightWidth"))
+            ##     tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
+            ##     print tmp
+            ##     print "probsum", sum([xx[1] for xx in tmp])
+            ##     #pg.set_value("probsum", sum([xx[1] for xx in tmp]))
+            ##     pg.set_value("var_elution_model_fit_score", sum([xx[1] for xx in tmp]))
 
             for pg in p.getAllPeakgroups():
                 left = float(pg.get_value("leftWidth"))
