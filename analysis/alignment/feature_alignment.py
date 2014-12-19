@@ -413,8 +413,287 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     """
     Bayesian alignment
     """
-    return
     
+    # Get alignments
+    spl_aligner = SplineAligner(initial_alignment_cutoff)
+    tr_data = LightTransformationData()
+    for r1 in exp.runs:
+        for r2 in exp.runs:
+            addDataToTrafo(tr_data, r1, r2,
+                           spl_aligner, multipeptides, smoothing_method,
+                           max_rt_diff)
+
+    print "here"
+    print "here done"
+    ptransfer = "all"
+    ptransfer = "gaussian"
+    ptransfer = "equal"
+
+    peak_sd = 15 # 30 seconds peak (2 stdev 95 \% of all signal)
+    peak_sd = 10 # 30 seconds peak (3 stdev 99.7 \% of all signal)
+    # peak_sd = 7.5
+    # peak_sd = 5
+    equal_bins_mult = 2.0 # two seems reasonable
+    equal_bins_mult = 4.0 # two seems reasonable
+    # equal_bins_mult = 2.5 # two seems reasonable
+    #equal_bins_mult = 0.25
+
+
+    """
+    ITEGSTVSVNYASASSDR_both_0_1_none.pdf
+     produced with 
+
+        ptransfer = "equal"
+        peak_sd = 7.5
+        equal_bins_mult = 0.25
+    """
+
+    ## from matplotlib import *
+
+    for i,mpep in enumerate(multipeptides):
+
+        break
+        if i < 1:
+            continue
+        print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
+        print i
+        for p in mpep.getAllPeptides(): # loop over runs
+            current_best_pg = p.get_best_peakgroup()
+            print " === run"
+            for pg in p.getAllPeakgroups():
+                print pg
+                print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
+        break
+        if i >=205: 
+            break
+
+    xxxskip = 1  # not much happens ...
+    xxxskip = 23 # 10828_IGDAANDIPTLVR_2_run0 -> single peak not so interesting
+
+    xxxskip = 21 # 1095_GMVPSGASTGEHEAVELR_2_run0  -> hard case, peak streaks out (peapicker issue!!)
+    xxxskip = 74 # 12521_KTDDISGVIGG_2_run0 rather nice example ...  -> only one is affected, the other is not (different certainty), h0 = 0.9
+    xxxskip = 80 # secondary peak is completely removed ...  (from 1e-3 to 1e-5) -> tiny example (not so good)
+    xxxskip = 96 # 1103_GNPTLEVNDNGGYFDLAPIDLADNTR_3 two well-separated peaks, posterior is adapted nicely in both cases ... -> however here it is unclear which one is correct!
+    #xxxskip = 102
+    xxxskip = 133
+    xxxskip = 164 # 11684_ITEGSTVSVNYASASSDR_2_run0 two close peaks but we pick the right one ... with tight constraints -> with 4 eq bins, not much changes ...
+    xxxskip = 176
+    # xxxskip = 178 # very good peptide (around 300s)
+
+    xxxskip = 192
+    for pepcnt,mpep in enumerate(multipeptides):
+
+        if pepcnt < xxxskip:
+            continue
+
+        print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
+        rts = [pg.get_normalized_retentiontime()
+                for p in mpep.getAllPeptides()
+                    for pg in p.getAllPeakgroups() ]
+        min_rt = min(rts)
+        max_rt = max(rts)
+        min_rt -= abs(max_rt - min_rt) * 0.2
+        max_rt += abs(max_rt - min_rt) * 0.2
+        bins = 400
+        bins = 25
+        bins = 100
+        # print "min/max", min_rt, max_rt
+        ## min_rt = 2400
+        ## max_rt = 2500
+
+        import scipy.stats
+        import numpy as np
+
+        rv = scipy.stats.norm()
+        dt = abs(max_rt - min_rt) / bins
+
+        equal_bins = int(peak_sd / dt) + 1
+        equal_bins *= equal_bins_mult
+
+        h0 = {}
+        posteriors = {}
+        x = np.linspace(min_rt, max_rt, bins)
+        for p in mpep.getAllPeptides(): # loop over runs
+            current_best_pg = p.get_best_peakgroup()
+            gaussians = []
+            y = np.zeros_like(x)
+            ##  print x, y
+            # sum_gaussians 
+            for pg in p.getAllPeakgroups():
+                ##print pg
+                h0_tmp = float(pg.get_value("h0_score"))
+                ##print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
+                weight = float(pg.get_value("h_score"))
+                gaussians.append( scipy.stats.norm(loc = pg.get_normalized_retentiontime() , scale = peak_sd ))
+                # y = y + (scipy.ones(len(x) ) * weight) * scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
+                # y = y + numpy.array([ elem * weight for elem in scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd ) ], np.float)
+                y = y + dt * weight * scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
+                # y = y + scipy.stats.norm.pdf(x, loc = pg.get_normalized_retentiontime() , scale = peak_sd )
+            ## current_best_pg.select_this_peakgroup()
+            if False:
+                print x, y
+                print sum(y)
+                print sum(y) + h0_tmp
+                print abs(max_rt - min_rt) * 0.2
+                print dt
+            f_D_r_t = y # f_{D_r}(t) posterior pdf for each run
+            posteriors[p.run.get_id()] = y
+            h0[p.run.get_id()] = h0_tmp
+            # print " == Selected peakgroup ", current_best_pg.print_out()
+
+        ## print "got multiple posteriors", posteriors
+        # print "got multiple posteriors"
+
+        for p in mpep.getAllPeptides(): # loop over runs
+            current_best_pg = p.get_best_peakgroup()
+            # print "-------------------------"
+            # print " run ", p.run
+            # print " m = ", p.run
+            m = p.run.get_id()
+            f_D_m = posteriors[ p.run.get_id() ] # f_{D_r}(t) posterior pdf for run m
+            p_B_jm = 1.0/bins # prior p(B_{jm})
+            B_m = []
+            p_D_no_m = []
+            for j in xrange(bins):
+                tmp_prod = 1.0
+                # \prod
+                # r = 1 \ m to n
+                for rloop in mpep.getAllPeptides(): # loop over runs
+                    r = rloop.run.get_id()
+                    if r == m:
+                        continue
+                    f_D_r = posteriors[r]
+
+
+                    # transform RT
+                    # source RT is in space of run m
+                    source = m
+                    target = r
+                    #source = r
+                    #target = m
+                    expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
+                    t_tmp = [ [abs(xx - expected_rt),i] for i,xx in enumerate(x)]
+                    matchbin = min(t_tmp)[1]
+                    if False:
+                        print "convert from", source, " to ", target
+                        print "predict for ", x[j]
+                        print "results in ", expected_rt
+                        print "matching bin: ", min(t_tmp)
+                        print "matching bin: ", min(t_tmp)[1]
+                        print x[matchbin]
+
+                    p_Dr_Bjm = 0 # p(D_r|B_{jm})
+                    # \sum 
+                    # q = 1 to k
+                    for q in xrange(bins):
+                        #### print "bin q", q, "delta matchbin", abs(q-matchbin)
+
+                        # Probability of bin q (run r) given that the analyte
+                        # is actually in bin j (run m): p_Bqr_Bjm
+                        p_Bqr_Bjm = 0
+                        if ptransfer == "all":
+                            if q == matchbin:
+                                p_Bqr_Bjm = 1
+                        elif ptransfer == "equal":
+                            if abs(q - matchbin) < equal_bins:
+                                p_Bqr_Bjm = 0.5 / equal_bins
+                        elif ptransfer == "gaussian":
+                            # print "gauss"
+                            p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = 2.0*peak_sd )
+                            # print p_Bqr_Bjm 
+                            # print x[q] , expected_rt
+                        p_Dr_Bjm += f_D_r[q] * p_Bqr_Bjm
+                        ### print "compute ", f_D_r[q] , " * ",  p_Bqr_Bjm ,  " = ", f_D_r[q] * p_Bqr_Bjm, "(for ", x[q],")"
+                    ## print "all sum", p_Dr_Bjm
+                    ## print "h0 here", h0[r]
+                    p_absent = h0[r]
+                    p_present = 1-h0[r]
+                    #p_present = 1.0
+                    #p_absent = 0.0
+                    # use correct formula from last page
+                    tmp_prod *= p_present * p_Dr_Bjm + p_absent / bins 
+                    ## print "add for bin", p_present * p_Dr_Bjm + p_absent / bins 
+                ### print "all prod", tmp_prod
+                p_D_no_m.append(tmp_prod)
+                # print "tmp_prod_", tmp_prod, "bin", j
+                B_jm = f_D_m[j]  * p_B_jm * tmp_prod # f_{D_m}(t_j) * p(B{jm} * ... 
+                ## print " h0m correction", 1- h0[m]
+                # correction for h_0 hypothesis according to (35), right before chapter E
+                # may be omitted for computational reasons since it does not change the result
+                ### TODO
+                ### B_jm *= 1-h0[m]
+                ### print "B_{%s %s} " % (j, m), B_jm
+                B_m.append(B_jm)
+
+            print "==========================================================================="
+            # print "B_{%s} forall j" % (m), B_m
+            ## print "sum", sum(B_m)
+            ## print "sum prior", sum(posteriors[m])
+            ## print "sum over all other runs", sum(p_D_no_m)
+            B_m /= sum(B_m)
+            ### TODO correct here for H0 ? 
+            B_m *= 1-h0[m]
+            #
+            # print "(B_{%s} |D) forall j normalized" % (m), B_m
+            # print "(B_{%s} |D_m) forall j normalized" % (m), posteriors[m]
+            print "MAP (B_m|D)", max([ [xx,i] for i,xx in enumerate(B_m)])
+            print "MAP (B_m|D_m)", max([ [xx,i] for i,xx in enumerate(posteriors[m])])
+            max_prior = max([ [xx,i] for i,xx in enumerate(posteriors[m])])[1]
+            max_post = max([ [xx,i] for i,xx in enumerate(B_m)])[1]
+            ### print "MAP before at ", x[max_prior]
+            ### print "MAP now at ", x[max_post]
+            ### print "  --> ", x[max_post] - 0.5*dt , " to ", x[max_post] + 0.5*dt
+            ###
+            ###
+            if True:
+                # Plot ? 
+                import pylab
+                pylab.plot(x, posteriors[m])
+                pylab.savefig('prior_%s.pdf' % m )
+                pylab.clf()
+                pylab.plot(x, B_m)
+                print '%s' % m
+                pylab.savefig('post_%s.pdf' % m )
+                pylab.clf()
+                pylab.plot(x, posteriors[m], label="prior")
+                pylab.plot(x, B_m, label="posterior")
+                pylab.plot(x, p_D_no_m, label="likelihood (other runs)")
+                #pylab.legend(loc= "upper left")
+                pylab.legend(loc= "upper right")
+                pylab.savefig('both_%s.pdf' % m )
+
+            # Check all pg again
+            for pg in p.getAllPeakgroups():
+                break
+                print pg
+                print "  pg score", pg.get_value("pg_score"),  "  h score", pg.get_value("h_score") ,  "  h0 score", pg.get_value("h0_score")
+                print "  left ", pg.get_value("leftWidth"),  "right", pg.get_value("rightWidth")
+                left = float(pg.get_value("leftWidth"))
+                right = float(pg.get_value("rightWidth"))
+                tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
+                print tmp
+                print "probsum", sum([xx[1] for xx in tmp])
+                #pg.set_value("probsum", sum([xx[1] for xx in tmp]))
+                pg.set_value("var_elution_model_fit_score", sum([xx[1] for xx in tmp]))
+
+
+            for pg in p.getAllPeakgroups():
+                left = float(pg.get_value("leftWidth"))
+                right = float(pg.get_value("rightWidth"))
+                tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
+                pg.set_value("var_elution_model_fit_score", sum([xx[1] for xx in tmp]))
+
+            # TODO how to transfer this ... 
+            # select by maximum probability sum
+            best_psum = max([(pg.get_value("var_elution_model_fit_score"), pg) for pg in p.getAllPeakgroups()])
+            print "best peak", best_psum[1], "with sum", best_psum[0]
+            best_psum[1].select_this_peakgroup()
+                
+
+        print "new peptide (bayes)", mpep.getAllPeptides()[0].get_id()
+        if pepcnt >=xxxskip: 
+            break
+
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
                    fdr_cutoff, aligned_fdr_cutoff, smoothing_method, method,
                    use_RT_correction, stdev_max_rt_per_run, use_local_stdev):
