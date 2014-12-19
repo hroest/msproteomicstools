@@ -144,6 +144,13 @@ class GeneralPrecursor(PrecursorBase):
     def getClusteredPeakgroups(self):
       return [pg for pg in self.peakgroups if pg.getClusterID() != -1]
 
+    def unselect_all(self):
+        for pg in self.peakgroups:
+            pg.setClusterID(-1)
+
+    def getAllPeakgroups(self):
+        return self.peakgroups
+
 class Precursor(PrecursorBase):
     """ A set of peakgroups that belong to the same precursor in a single run.
 
