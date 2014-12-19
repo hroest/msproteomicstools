@@ -493,8 +493,10 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
         source = m
         target = r
         expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
-        t_tmp = [ [abs(xx - expected_rt),i] for i,xx in enumerate(x)]
-        matchbin = min(t_tmp)[1]
+        dt = (max(x) - min(x)) / len(x)
+        matchbin = int((expected_rt - min(x)) / dt )
+
+        # If verbose
         if False:
             print "convert from", source, " to ", target
             print "predict for ", x[j]
