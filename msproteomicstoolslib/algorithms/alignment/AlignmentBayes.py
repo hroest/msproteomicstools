@@ -397,14 +397,13 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
                 left = float(pg.get_value("leftWidth"))
                 right = float(pg.get_value("rightWidth"))
                 tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
-                pg.set_value("norm_RT", sum([xx[1] for xx in tmp]))
                 pg.add_value("accum_p", sum([xx[1] for xx in tmp]))
                 print "   *", pg, " ", pg.get_value("pg_score"), " / ", pg.get_value("h_score"), " / h0 ", pg.get_value("h0_score")
 
             # TODO how to transfer this ... 
             # select by maximum probability sum
-            print [(pg.get_value("norm_RT"), pg.get_value("RT")) for pg in p.getAllPeakgroups()]
-            best_psum = max([(pg.get_value("norm_RT"), pg) for pg in p.getAllPeakgroups()])
+            print [(pg.get_value("accum_p"), pg.get_value("RT")) for pg in p.getAllPeakgroups()]
+            best_psum = max([(pg.get_value("accum_p"), pg) for pg in p.getAllPeakgroups()])
             print "best peak", best_psum[1], "with sum", best_psum[0]
             best_pg = best_psum[1]
             if float(best_pg.get_value("h0_score")) < h0_cutoff: 
