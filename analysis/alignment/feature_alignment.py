@@ -279,7 +279,8 @@ class Experiment(MRExperiment):
                                   aligner_mscore_treshold=options.fdr_cutoff)
 
         # 4. Write out the full outfile
-        if len(outfile) > 0 and options.readmethod == "full":
+        print len(outfile) > 0, options.readmethod == "full", options.readmethod 
+        if len(outfile) > 0 and options.readmethod in ["full", "complete"]:
             # write out the complete original files 
             writer = csv.writer(open(outfile, "w"), delimiter="\t")
             header_first = self.runs[0].header
@@ -294,16 +295,17 @@ class Experiment(MRExperiment):
                 if (len(selected_peakgroups)*1.0 / len(self.runs)) < fraction_needed_selected:
                     continue
 
-                for p in m.get_peptides():
+                for p in m.getAllPeptides():
                     selected_pg = p.get_selected_peakgroup()
                     if selected_pg is None: 
                         continue
 
+                    f_id = selected_pg.get_value("id")
                     row_to_write = selected_pg.row
                     row_to_write += [selected_pg.run.get_id(), selected_pg.run.orig_filename]
                     # Replace run_id with the aligned id (align_runid) ->
                     # otherwise the run_id is not guaranteed to be unique 
-                    row_to_write[ header_dict["run_id"]] = selected_ids_dict[f_id].peptide.run.get_id()
+                    row_to_write[ selected_pg.run.header_dict["run_id"] ] = selected_ids_dict[f_id].peptide.run.get_id()
                     writer.writerow(row_to_write)
 
         elif len(outfile) > 0 and file_format in ["openswath", "peakview_preprocess"]:
