@@ -287,27 +287,6 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     for pepcnt,mpep in enumerate(multipeptides):
 
-        pepid = mpep.getAllPeptides()[0].get_id()
-
-        # if False:
-        #     for p in mpep.getAllPeptides(): # loop over runs
-        #         pgg = [float(pg.get_value("h_score")) for pg in p.getAllPeakgroups()]
-        #         pgg.sort(reverse=True)
-        #         if len(pgg) > 1:
-        #             if pgg[0] / pgg[1] < 10 and float(pg.get_value("h0_score")) < 0.3:
-        #                 print "  -> Candiate match", pepcnt, pepid
-        #                 #print "  -> Candiate match", pepcnt, pepid, pgg[0] / pgg[1], float(pg.get_value("h0_score")), pgg 
-
-        #     continue
-
-        # for p in mpep.getAllPeptides(): # loop over runs
-        #     pgg = [float(pg.get_value("h_score")) for pg in p.getAllPeakgroups()]
-        #     pgg.sort(reverse=True)
-        #     if len(pgg) > 1:
-        #         if pgg[0] / pgg[1] < 10 and float(pg.get_value("h0_score")) < 0.3:
-        #             print "  -> Candiate match", pepcnt, pepid, pgg[0] / pgg[1], float(pg.get_value("h0_score")), pgg 
-
-
         print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
 
         # Step 2.1 : Compute the retention time space (min / max)
