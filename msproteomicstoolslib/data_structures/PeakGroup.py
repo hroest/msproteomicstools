@@ -189,13 +189,26 @@ class GeneralPeakGroup(PeakGroupBase):
       self.run = run
       self.peptide = peptide
 
+    def add_value(self, header, value):
+        if not header in self.run.header_dict:
+            self.run.addToHeader(header)
+
+        # Check if row is long enough to hold values
+        rowdiff = self.run.getColumnPosition(header) - len(self.row) 
+        rowdiff += 1
+        if rowdiff > 0:
+            self.row.extend( ["NA" for i in range(rowdiff)])
+
+        self.set_value(header, value)
+
     def get_value(self, value):
-        return self.row[self.run.header_dict[value]]
+        return self.row[self.run.getColumnPosition(value)]
 
     def set_value(self, key, value):
         if value is None:
             value = "NA"
-        self.row[self.run.header_dict[key]] = value
+
+        self.row[self.run.getColumnPosition(key)] = value
 
     def get_dscore(self):
         return self.get_value("d_score")

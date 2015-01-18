@@ -66,6 +66,16 @@ class Run():
     def __str__(self):
         return "Run %s" % (self.get_id())
 
+    def getColumnPosition(self, value):
+        return self.header_dict[value]
+
+    def addToHeader(self, value):
+        max_val = max(self.header_dict.values())
+        # Modify the header dict and the header itself
+        self.header_dict[value] = max_val + 1
+        self.header.append(value)
+        assert len(self.header) == len(self.header_dict)
+
     def get_id(self):
         return self.runid
 
