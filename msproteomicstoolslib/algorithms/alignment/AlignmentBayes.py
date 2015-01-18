@@ -230,6 +230,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Set parameters
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    h0_cutoff = 0.5
+
     ptransfer = "all"
     ptransfer = "equal" # boxcar / rectangle
     ptransfer = "bartlett" #triangular
@@ -402,9 +404,11 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             # select by maximum probability sum
             best_psum = max([(pg.get_value("norm_RT"), pg) for pg in p.getAllPeakgroups()])
             print "best peak", best_psum[1], "with sum", best_psum[0]
-            best_psum[1].select_this_peakgroup()
-            fh.write("%s\t%s\n" % (best_psum[1].get_value("id"), best_psum[0]) )
-            print "write to fh", "%s\t%s" % (best_psum[1].get_value("id"), best_psum[0]) 
+            best_pg = best_psum[1]
+            if float(best_pg.get_value("h0_score")) < h0_cutoff: 
+                best_pg.select_this_peakgroup()
+                fh.write("%s\t%s\n" % (best_psum[1].get_value("id"), best_psum[0]) )
+                print "write to fh", "%s\t%s" % (best_psum[1].get_value("id"), best_psum[0]) 
                 
         print "peptide (bayes)", mpep.getAllPeptides()[0].get_id()
 
