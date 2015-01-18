@@ -200,7 +200,6 @@ def doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
     pylab.clf()
 
     pylab.plot(x, B_m)
-    print '%s' % m
     pylab.savefig('post_%s.pdf' % m )
     pylab.clf()
 
@@ -219,17 +218,21 @@ def doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
     pylab.clf()
 
 def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
-                        smoothing_method, doPlot=True, outfile="out", transfer_fxn="bartlett"):
+                        smoothing_method, doPlot=True, outfile=None, transfer_fxn="bartlett"):
     """
     Bayesian alignment
     """
     
-    print "open outfile", outfile
-    fh = open(outfile, "w")
+    fh = None
+    if outfile is not None:
+        fh = open(outfile, "w")
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Set parameters
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+    # Only select any peak in the chromatogram if the chance that any peak is
+    # present is better than this probability.
     h0_cutoff = 0.5
 
     ptransfer = "all"
@@ -273,11 +276,9 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     tr_data = LightTransformationData()
     for r1 in exp.runs:
         for r2 in exp.runs:
-            startx = time.time()
             addDataToTrafo(tr_data, r1, r2,
                            spl_aligner, multipeptides, smoothing_method,
                            max_rt_diff, sd_max_data_length=300)
-            print("Add trafo to data took %0.2fs" % (time.time() - startx) )
 
     print("Compute pairwise alignments took %0.2fs" % (time.time() - start) )
     start = time.time()
@@ -287,7 +288,7 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     for pepcnt,mpep in enumerate(multipeptides):
 
-        print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
+        # print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
 
         # Step 2.1 : Compute the retention time space (min / max)
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -310,7 +311,7 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
         # Step 2.3 : Loop over all runs for this peptide 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
         for p in mpep.getAllPeptides():
-            m = p.run.get_id()
+            m = p.run.get_id() # current_run id
 
             # Step 2.3.1 : obtain likelihood f_{D_m}(t) for current run m and prior p(B_{jm})
             f_D_m = run_likelihood[ p.run.get_id() ] # f_{D_m}(t) likelihood pdf for run m
@@ -324,7 +325,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             p_D_no_m = []
             for j in xrange(bins):
 
-                tmp_prod = doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, peak_sd, bins, ptransfer, transfer_width)
+                tmp_prod = doBayes_collect_product_data(mpep, tr_data, m, j, h0, 
+                                run_likelihood, x, peak_sd, bins, ptransfer, transfer_width)
 
                 p_D_no_m.append(tmp_prod)
                 B_jm = f_D_m[j] * p_B_jm * tmp_prod # f_{D_m}(t_j) * p(B{jm}) * ... 
@@ -354,17 +356,14 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
 
             # Step 2.3.4 : Compute maximal posterior and plot data
             #              
-            print "MAP (B_m|D)", max([ [xx,i] for i,xx in enumerate(B_m)])
-            print "MAP (B_m|D_m)", max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])
+            # print "MAP (B_m|D)", max([ [xx,i] for i,xx in enumerate(B_m)])
+            # print "MAP (B_m|D_m)", max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])
             max_prior = max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])[1]
             max_post = max([ [xx,i] for i,xx in enumerate(B_m)])[1]
 
             if doPlot:
                 p_D_no_m /= sum(p_D_no_m) # for plotting purposes
                 p_D_no_m *= 1-h0[m] # for plotting purposes
-                # print "to plot p_D_no_m", p_D_no_m
-                # print "sum prior", sum(run_likelihood[m])
-                # print "sum post", sum(B_m)
                 doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post)
 
             # Compute bin width (dt)
@@ -377,21 +376,20 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
                 right = float(pg.get_value("rightWidth"))
                 tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
                 pg.add_value("accum_p", sum([xx[1] for xx in tmp]))
-                print "   *", pg, " ", pg.get_value("pg_score"), " / ", pg.get_value("h_score"), " / h0 ", pg.get_value("h0_score")
 
-            # TODO how to transfer this ... 
-            # select by maximum probability sum
-            print [(pg.get_value("accum_p"), pg.get_value("RT")) for pg in p.getAllPeakgroups()]
+            # select the peak with the maximum probability weight
             best_psum = max([(pg.get_value("accum_p"), pg) for pg in p.getAllPeakgroups()])
-            print "best peak", best_psum[1], "with sum", best_psum[0]
+            # print "best peak", best_psum[1], "with sum", best_psum[0]
             best_pg = best_psum[1]
             if float(best_pg.get_value("h0_score")) < h0_cutoff: 
                 best_pg.select_this_peakgroup()
-                fh.write("%s\t%s\n" % (best_psum[1].get_value("id"), best_psum[0]) )
-                print "write to fh", "%s\t%s" % (best_psum[1].get_value("id"), best_psum[0]) 
+                if fh is not None:
+                    fh.write("%s\t%s\n" % (best_psum[1].get_value("id"), best_psum[0]) )
                 
-        print "peptide (bayes)", mpep.getAllPeptides()[0].get_id()
+        # print "peptide (bayes)", mpep.getAllPeptides()[0].get_id()
 
-    fh.close()
+    if fh is not None:
+        fh.close()
+
     print("Bayesian alignment took %0.2fs" % (time.time() - start) )
 
