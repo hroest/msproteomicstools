@@ -588,13 +588,16 @@ def doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
 
 
 def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
-                        smoothing_method, doPlot=True):
+                        smoothing_method, doPlot=True, outfile="out"):
     """
     Bayesian alignment
     """
     
     import scipy.stats
     import numpy as np
+
+    print "open outfile", outfile
+    fh = open(outfile, "w")
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Set parameters
@@ -653,6 +656,26 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     for pepcnt,mpep in enumerate(multipeptides):
 
         pepid = mpep.getAllPeptides()[0].get_id()
+
+        # if False:
+        #     for p in mpep.getAllPeptides(): # loop over runs
+        #         pgg = [float(pg.get_value("h_score")) for pg in p.getAllPeakgroups()]
+        #         pgg.sort(reverse=True)
+        #         if len(pgg) > 1:
+        #             if pgg[0] / pgg[1] < 10 and float(pg.get_value("h0_score")) < 0.3:
+        #                 print "  -> Candiate match", pepcnt, pepid
+        #                 #print "  -> Candiate match", pepcnt, pepid, pgg[0] / pgg[1], float(pg.get_value("h0_score")), pgg 
+
+        #     continue
+
+        # for p in mpep.getAllPeptides(): # loop over runs
+        #     pgg = [float(pg.get_value("h_score")) for pg in p.getAllPeakgroups()]
+        #     pgg.sort(reverse=True)
+        #     if len(pgg) > 1:
+        #         if pgg[0] / pgg[1] < 10 and float(pg.get_value("h0_score")) < 0.3:
+        #             print "  -> Candiate match", pepcnt, pepid, pgg[0] / pgg[1], float(pg.get_value("h0_score")), pgg 
+
+
         print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
 
         # Step 2.1 : Compute the retention time space (min / max)
@@ -742,17 +765,20 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
                 left = float(pg.get_value("leftWidth"))
                 right = float(pg.get_value("rightWidth"))
                 tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
-                pg.set_value("var_elution_model_fit_score", sum([xx[1] for xx in tmp]))
+                pg.set_value("norm_RT", sum([xx[1] for xx in tmp]))
                 print "   *", pg, " ", pg.get_value("pg_score"), " / ", pg.get_value("h_score"), " / h0 ", pg.get_value("h0_score")
 
             # TODO how to transfer this ... 
             # select by maximum probability sum
-            best_psum = max([(pg.get_value("var_elution_model_fit_score"), pg) for pg in p.getAllPeakgroups()])
+            best_psum = max([(pg.get_value("norm_RT"), pg) for pg in p.getAllPeakgroups()])
             print "best peak", best_psum[1], "with sum", best_psum[0]
             best_psum[1].select_this_peakgroup()
+            fh.write("%s\t%s\n" % (best_psum[1].get_value("id"), best_psum[0]) )
+            print "write to fh", "%s\t%s" % (best_psum[1].get_value("id"), best_psum[0]) 
                 
         print "peptide (bayes)", mpep.getAllPeptides()[0].get_id()
 
+    fh.close()
     print("Bayesian alignment took %0.2fs" % (time.time() - start) )
 
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
@@ -991,7 +1017,8 @@ def main(options):
         start = time.time()
         doBayesianAlignment(this_exp, multipeptides, float(options.rt_diff_cutoff), 
                        float(options.alignment_score), 
-                       options.realign_method) 
+                       options.realign_method, doPlot=True, 
+                       outfile=options.ids_outfile + "extra") 
         print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
     elif options.method == "LocalMST" or options.method == "LocalMSTAllCluster":
         start = time.time()
