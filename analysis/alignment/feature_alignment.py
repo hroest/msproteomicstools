@@ -588,7 +588,7 @@ def doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
 
 
 def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
-                        smoothing_method, doPlot=True, outfile="out"):
+                        smoothing_method, doPlot=True, outfile="out", transfer_fxn="bartlett"):
     """
     Bayesian alignment
     """
@@ -606,6 +606,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     ptransfer = "equal" # boxcar / rectangle
     ptransfer = "bartlett" #triangular
     ptransfer = "gaussian" # gaussian window
+    # ptransfer = "bartlett" #triangular
+    ptransfer = transfer_fxn
 
     peak_sd = 15 # 30 seconds peak (2 stdev 95 \% of all signal)
     peak_sd = 10 # 30 seconds peak (3 stdev 99.7 \% of all signal)
@@ -942,6 +944,7 @@ def handle_args():
     experimental_parser.add_argument("--mst:useRTCorrection", dest="mst_correct_rt", type=ast.literal_eval, default=False, help="Use aligned peakgroup RT to continue threading in MST algorithm", metavar='False')
     experimental_parser.add_argument("--mst:Stdev_multiplier", dest="mst_stdev_max_per_run", type=float, default=-1.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (if less than max_rt_diff, then max_rt_diff is used)", metavar='-1.0')
     experimental_parser.add_argument("--mst:useLocalStdev", dest="mst_local_stdev", type=ast.literal_eval, default=False, help="Use standard deviation of local region of the chromatogram", metavar='False')
+    experimental_parser.add_argument("--bayes:transfer_fxn", dest="bayes_transfer_fxn", default="bartlett", help="Transfer function")
     experimental_parser.add_argument("--target_fdr", dest="target_fdr", default=-1, type=float, help="If parameter estimation is used, which target FDR should be optimized for. If set to lower than 0, parameter estimation is turned off.", metavar='0.01')
 
     # deprecated methods
@@ -1018,7 +1021,8 @@ def main(options):
         doBayesianAlignment(this_exp, multipeptides, float(options.rt_diff_cutoff), 
                        float(options.alignment_score), 
                        options.realign_method, doPlot=True, 
-                       outfile=options.ids_outfile + "extra") 
+                       outfile=options.ids_outfile + "extra",
+                       transfer_fxn=options.bayes_transfer_fxn) 
         print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
     elif options.method == "LocalMST" or options.method == "LocalMSTAllCluster":
         start = time.time()
