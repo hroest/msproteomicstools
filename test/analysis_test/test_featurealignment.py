@@ -221,25 +221,24 @@ class TestFeatureAlignment(unittest.TestCase):
             filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
 
         cmd = "python %s %s" % (script, args)
-        print cmd
         sub.check_output(cmd,shell=True)
         
-        #self.exact_diff(tmpfilename, expected_outcome, header_exclude = ["align_origfilename"])
+        self.exact_diff(tmpfilename, expected_outcome, header_exclude = ["align_origfilename"])
         self.exact_diff(tmpfilename_ids + "extra", expected_outcome_ids_scores)
-        #self.exact_diff(tmpfilename_matrix, expected_matrix_outcome)
+        self.exact_diff(tmpfilename_matrix, expected_matrix_outcome)
 
-        #os.remove(tmpfilename)
+        os.remove(tmpfilename)
         os.remove(tmpfilename_ids)
-        #os.remove(tmpfilename_matrix)
+        os.remove(tmpfilename_matrix)
 
     @attr('Bayes')
     @attr('Bayes_fast')
     def test_9_featureAlignment_openswath_bayesian(self):
         script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
         filename = os.path.join(self.datadir, "feature_alignment_8_bayesian_input.csv")
-        expected_outcome_ids = os.path.join(self.datadir, "feature_alignment_8_output_1_ids.csv")
-        expected_matrix_outcome = os.path.join(self.datadir, "feature_alignment_8_output_2_matrix.csv")
-        expected_outcome = os.path.join(self.datadir, "feature_alignment_8_output_3.csv")
+        expected_outcome_ids = os.path.join(self.datadir, "feature_alignment_9_output_1_ids.csv")
+        expected_matrix_outcome = os.path.join(self.datadir, "feature_alignment_9_output_2_matrix.csv")
+        expected_outcome = os.path.join(self.datadir, "feature_alignment_9_output_3.csv")
         expected_outcome_ids_scores = os.path.join(self.datadir, "feature_alignment_9_output_1_ids_scores.csv")
         tmpfilename = "featureAlignment_9.out.tmp"
         tmpfilename_ids = "featureAlignment_9.out.tmp_idsonly.csv"
@@ -250,16 +249,15 @@ class TestFeatureAlignment(unittest.TestCase):
             filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
 
         cmd = "python %s %s" % (script, args)
-        print cmd
         sub.check_output(cmd,shell=True)
         
-        #self.exact_diff(tmpfilename, expected_outcome, header_exclude = ["align_origfilename"])
+        self.exact_diff(tmpfilename, expected_outcome, header_exclude = ["align_origfilename"])
         self.exact_diff(tmpfilename_ids + "extra", expected_outcome_ids_scores)
-        #self.exact_diff(tmpfilename_matrix, expected_matrix_outcome)
+        self.exact_diff(tmpfilename_matrix, expected_matrix_outcome)
 
-        #os.remove(tmpfilename)
+        os.remove(tmpfilename)
         os.remove(tmpfilename_ids)
-        #os.remove(tmpfilename_matrix)
+        os.remove(tmpfilename_matrix)
 
 if __name__ == '__main__':
     unittest.main()
