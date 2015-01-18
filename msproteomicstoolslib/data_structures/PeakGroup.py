@@ -201,7 +201,9 @@ class GeneralPeakGroup(PeakGroupBase):
         return self.get_value("d_score")
 
     def print_out(self):
-        return self.peptide.run.get_id() + "/" + self.get_feature_id() + " score:" + str(self.get_fdr_score()) + " norm_RT:" + str(self.get_normalized_retentiontime()) + " RT:" + str(self.get_value("RT")) + " Int : " + str(self.get_value("Intensity"))
+        return self.peptide.run.get_id() + "/" + self.get_feature_id() + " score:" + \
+                str(self.get_fdr_score()) + " norm_RT:" + str(self.get_normalized_retentiontime()) + \
+                " RT:" + str(self.get_value("RT")) + " Int : " + str(self.get_value("Intensity"))
   
     def setClusterID(self, clid):
         self.cluster_id_ = clid

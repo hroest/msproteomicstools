@@ -119,14 +119,13 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
 
         # If verbose
         if verb:
+            print "use method", ptransfer
             print "convert from", source, " to ", target
-            print "predict for ", x[j]
-            print "results in ", expected_rt
+            print "predict for", x[j]
+            print "results in", expected_rt
             print x[matchbin]
-            print min(x)
-            print max(x)
-            print len(x)
             print "best bin", int((expected_rt - min(x)) / dt )
+            print "eq bins", equal_bins
 
         # (ii) Compute p(D_r|B_{jm} = \sum_{q=1}^{k} p(D_r | B_{qr} ) * p(B_{qr}|B_{jm}
         #      This is a sum over all bins of the target run r
@@ -352,9 +351,9 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
                 if False:
                     print "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt"
                     print "Computed bin %s at RT %s" % (j, x[j])
-                    print 
                     print "Compute B_jm =  %s * %s * %s = %s " % (f_D_m[j], p_B_jm, tmp_prod, B_jm)
                     print "Got for bin %s a value of %s, will record a result of %s for B_jm" % (j, tmp_prod, B_jm)
+                    print 
 
                 ### TODO
                 # correction for h_0 hypothesis according to (35), right before chapter E
