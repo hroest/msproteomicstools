@@ -96,6 +96,8 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
         - equal: all bins around the best bin get equal probability
         - gaussian: probability is distributed according to a gaussian
 
+    This step usually takes the longest, with the bottleneck either in getTrafo
+    or scipy.stats.norm.pdf
     """
 
     dt = (max(x) - min(x)) / len(x)
@@ -114,6 +116,7 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
         #     of the target run (r) and find the matching bin in run r
         source = m
         target = r
+        # TODO: TIME : this fxn call can be rather slow, 13% - 80% of the time (depending on alignment method)
         expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
         matchbin = int((expected_rt - min(x)) / dt )
 
@@ -132,6 +135,7 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
         p_Dr_Bjm = 0 # p(D_r|B_{jm})
         # \sum 
         # q = 1 to k
+        # TODO: TIME : loop can be rather slow (for bartlett even), ca 60% of all time
         for q in xrange(bins):
 
             # (iii) Compute transition probability between runs, e.g.
@@ -154,6 +158,7 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
                     dy = (1.0 * equal_bins - abs(q - matchbin) ) / equal_bins
                     p_Bqr_Bjm = dy * height
             elif ptransfer == "gaussian":
+                # TODO: TIME : this can be really slow
                 p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = transfer_width)
 
             # (iv) multiply f_{D_r}(t_q) with the transition probability
@@ -300,6 +305,12 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
         max_rt = max(rts)
         min_rt -= abs(max_rt - min_rt) * rt_window_ext
         max_rt += abs(max_rt - min_rt) * rt_window_ext
+
+        # Hack to ensure that the two are never equal
+        if min_rt == max_rt:
+            min_rt -= peak_sd
+            max_rt += peak_sd
+
 
         # Step 2.2 : Collect peakgroup data across runs
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
