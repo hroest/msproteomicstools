@@ -230,6 +230,10 @@ def runSingleFileImputation(options, peakgroups_file, mzML_file, method):
     multipeptides = new_exp.get_all_multipeptides(fdr_cutoff_all_pg, verbose=False)
     print("Parsing the peakgroups file took %ss" % (time.time() - start) )
 
+    if not options.disable_isotopic_transfer:
+        print "There is a potential issue with the output of your run"
+        print "Since you want to force isotopic transfer, your output will contain peakgroups with m_score 1.5 which are re-quantified good peakgroups from before."
+
     mapping = {}
     precursors_mapping = {}
     sequences_mapping = {}
@@ -289,7 +293,7 @@ def runSingleFileImputation(options, peakgroups_file, mzML_file, method):
         disable_isotopic_transfer=options.disable_isotopic_transfer)
     print("Analyzing the runs took %ss" % (time.time() - start) )
 
-    return new_exp, multipeptides
+    return new_exp, multipeptides, rid
 
 def runImputeValues(options, peakgroups_file, trafo_fnames):
     """Impute values across chromatograms
@@ -474,6 +478,12 @@ def analyze_multipeptides(new_exp, multipeptides, swath_chromatograms,
                 continue
 
             for rid in [r.get_id() for r in new_exp.runs]:
+
+                # Skip if we should not extract from this run
+                if not onlyExtractFromRun is None:
+                    if onlyExtractFromRun != rid:
+                        continue
+
                 if m.hasPrecursorGroup(rid):
                     prgr = m.getPrecursorGroup(rid)
                     pgs = [(pg_.get_fdr_score(), pg_) for prec_ in prgr for pg_ in prec_.peakgroups if pg_.get_cluster_id() == cl] 
@@ -495,6 +505,14 @@ def analyze_multipeptides(new_exp, multipeptides, swath_chromatograms,
                                 pg.set_value("rightWidth", newpg.get_value("rightWidth"))
                                 pg.set_value("RT", newpg.get_value("RT"))
                                 pg.set_value("m_score", 1.5)
+                                pg.set_value("d_score", '-20') # -10 has a p value of 1.0 for 1-right side cdf
+                                pg.set_value("id", newpg.get_value("id"))
+                                pg.set_value("peak_group_rank", -1)
+                                pg.set_value("aggr_Peak_Area", newpg.get_value("aggr_Peak_Area"))
+                                pg.set_value("aggr_Fragment_Annotation", newpg.get_value("aggr_Fragment_Annotation"))
+                                pg.set_value("peak_apices_sum", "NA" )
+                                pg.cluster_id_ = cl
+                                pg.set_value("align_clusterid", cl)
 
 
         if all ([pg.get_cluster_id() == -1 for p in m.getAllPeptides() for pg in p.get_all_peakgroups()]):
@@ -696,7 +714,7 @@ def integrate_chromatogram(template_pg, current_run, swath_chromatograms,
     newpg.set_intensity(integrated_sum)
     return newpg
 
-def write_out(new_exp, multipeptides, outfile, matrix_outfile, single_outfile):
+def write_out(new_exp, multipeptides, outfile, matrix_outfile, single_outfile, allSingleFile=False, singleFileRun=None):
     """ Write the result to disk 
     """
     # write out the complete original files 
@@ -712,7 +730,13 @@ def write_out(new_exp, multipeptides, outfile, matrix_outfile, single_outfile):
         # if (len(selected_peakgroups)*2.0 / len(new_exp.runs) < fraction_needed_selected) : continue
         for p in m.getAllPeptides():
             for selected_pg in p.peakgroups:
-                if single_outfile:
+                if single_outfile and allSingleFile:
+                    # Still write all the data points ...
+                    if selected_pg.peptide.run.get_id() == singleFileRun:
+                        # print "write if", selected_pg.peptide.run.get_id(), singleFileRun
+                        row_to_write = selected_pg.row
+                        writer.writerow(row_to_write)
+                elif single_outfile:
                     # Only write the newly imputed ones ... 
                     if float(selected_pg.get_value("m_score")) > 1.0:
                         row_to_write = selected_pg.row
@@ -754,14 +778,15 @@ def handle_args():
 def main(options):
 
     if options.method in ["singleShortestPath", "singleClosestRun"]:
-        new_exp, multipeptides = runSingleFileImputation(options, options.peakgroups_infile, options.do_single_run, options.method)
+        new_exp, multipeptides, rid = runSingleFileImputation(options, options.peakgroups_infile, options.do_single_run, options.method)
+        if options.dry_run: 
+            return
+        write_out(new_exp, multipeptides, options.output, options.matrix_outfile, options.do_single_run, True, rid)
     else:
         new_exp, multipeptides = runImputeValues(options, options.peakgroups_infile, options.infiles)
-
-    if options.dry_run:
-        return
-
-    write_out(new_exp, multipeptides, options.output, options.matrix_outfile, options.do_single_run)
+        if options.dry_run: 
+            return
+        write_out(new_exp, multipeptides, options.output, options.matrix_outfile, options.do_single_run)
 
 if __name__=="__main__":
     options = handle_args()
