@@ -205,7 +205,7 @@ class GeneralPeakGroup(PeakGroupBase):
         """
         Larger than operator, allows sorting in Python 3.x
         """
-        return self.id_ > other.id_
+        return self.run > other.run
 
     def get_value(self, value):
         return self.row[self.run.header_dict[value]]
