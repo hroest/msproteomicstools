@@ -12,6 +12,6 @@ install:
   - pip install rpy2 # for Python 3.3
   - travis_retry python setup.py develop
 script: 
-  - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then "nosetests -w test/"; fi
-  - if [[ $TRAVIS_PYTHON_VERSION == 3* ]]; then "nosetests -a '!python2' test"; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then nosetests -w test/; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3* ]]; then osetests -a '!python2' test; fi
 cache: pip
