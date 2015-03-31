@@ -13,10 +13,10 @@ before_install:
 install:
   - pip install rpy2 # for Python 3.3
   - pip install numpy
-  - pip install scipy
+  - travis_wait pip install scipy
   - pip install biopython
   - travis_retry python setup.py develop
 script: 
   - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then nosetests -w test/; fi
   - if [[ $TRAVIS_PYTHON_VERSION == 3* ]]; then nosetests -a '!python2' test; fi
-
+cache: pip
