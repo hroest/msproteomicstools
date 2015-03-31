@@ -605,6 +605,114 @@ def handle_args():
             pass
     return args
 
+class PTMGroupResolver(object):
+
+    def __init__(self):
+        pass
+
+    def resolvePTMGroups(self, multipeptides, runs, maximal_median_diff=15):
+
+        # Step 1: map all multipeptides to their (naked / unmodified) peptide sequence
+        mpeptide_mapping = {}
+        for mpep in multipeptides:
+            seqs = [p.sequence for p in mpep.getAllPeptides()] 
+            assert( all([x == seqs[0] for x in seqs]))
+            tmp = mpeptide_mapping.get( seqs[0], [])
+            tmp.append(mpep)
+            mpeptide_mapping[seqs[0]] = tmp 
+
+        # Step 2: iterate through all sequences, e.g. multipeptides with the same sequences
+        for k,peptide_list in mpeptide_mapping.items():
+
+            # Step 2.1: get all peakgroup clusters for each peptide in the list
+            pepClusterList = self.groupClusters(peptide_list)
+
+            # Iterate through all available peptides and compare them against each other
+            for i in range(len(pepClusterList)):
+                mpep1 = pepClusterList[i][0]
+                allclusters1 = pepClusterList[i][1]
+                for j in range(i+1, len(pepClusterList)):
+                    mpep2 = pepClusterList[j][0]
+                    allclusters2 = pepClusterList[j][1]
+
+                    ####################################
+                    # Here we have two peptides with different assays
+                    # (different peptide_group_label) but the same sequence.
+                    # These are in most cases modified versions of the same
+                    # peptide and we need to look at the clusters of picked
+                    # peakgroups. We then check whether there is any overlap
+                    # between the peakgroups picked for the different versions
+                    # of the peptide (e.g. by looking at RT differences). 
+                    ####################################
+
+                    print("compare peptide %s with peptide %s" % (mpep1, mpep2) )
+
+                    if False:
+                        # Get best pg for peptide 1
+                        for pg in allclusters1[1]:
+                            print pg, pg.peptide
+                        print "======================"
+                        for pg in allclusters2[1]:
+                            print pg, pg.peptide
+
+                    # Select the cluster number 1
+                    cluster_pep1 = allclusters1[1]
+                    cluster_pep2 = allclusters2[1]
+
+                    overlap = self.computeOverlap(runs, cluster_pep1, cluster_pep2, maximal_median_diff)
+                    print("compare peptde %s with peptide %s, found overlap in %s out of %s runs" % (mpep1.getLabel(), mpep2.getLabel(), overlap, len(runs)) )
+
+    def groupClusters(self, v):
+        """
+        For a given multipeptide, return a list of all identified peakgroup clusters.
+
+        If there are two peptides which have the same sequence (but potentially
+        carry different modifications) then the resulting list will have length
+        two and for each of the two peptides contain a dictionary which gives
+        access to all peakgroups by their respective cluster into which they
+        are grouped.
+
+        Returns list( Multipeptide, dict(cluster_id, Peakgroup) )
+        """
+        result = []
+        for mpep in v:
+
+            allclusters = {}
+            for p in mpep.getAllPeptides():
+                for pg in p.getClusteredPeakgroups():
+                    tmp = allclusters.get( pg.get_cluster_id(), [])
+                    tmp.append(pg)
+                    allclusters[ pg.get_cluster_id() ] = tmp
+            print "Found clusters for", p, [ (k,"# members %s" % len(v)) for k,v in allclusters.items() ]  
+
+            result.append((mpep, allclusters))
+        return result
+
+    def computeOverlap(self, runs, cluster_pep1, cluster_pep2, maximal_median_diff):
+        overlap = 0
+        for run in runs:
+            # print run
+            pg_pep1 = [p for p in cluster_pep1 if p.peptide.get_run_id() == run.get_id()]
+            pg_pep2 = [p for p in cluster_pep2 if p.peptide.get_run_id() == run.get_id()]
+
+            pep1_median = numpy.median([p.get_normalized_retentiontime() for p in pg_pep1])
+            pep2_median = numpy.median([p.get_normalized_retentiontime() for p in pg_pep2])
+
+            if False:
+                for pg in pg_pep1:
+                    print pg, pg.peptide
+                for pg in pg_pep2:
+                    print pg, pg.peptide
+
+            # print("diff between medians %s" % (abs(pep1_median - pep2_median)))
+            if abs(pep1_median - pep2_median) < maximal_median_diff:
+                # print("found overlap between peakgroups")
+                overlap += 1
+
+        return overlap
+
+
+
 def main(options):
 
     class DReadFilter(object):
@@ -668,6 +776,8 @@ def main(options):
         if count < options.nr_high_conf_exp:
             for p in mpep.getAllPeptides():
                 p.unselect_all()
+
+    PTMGroupResolver().resolvePTMGroups(multipeptides, runs)
 
     # print statistics, write output
     start = time.time()
