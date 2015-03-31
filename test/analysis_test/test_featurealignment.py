@@ -160,7 +160,7 @@ class TestFeatureAlignment(unittest.TestCase):
 
         os.remove(tmpfilename_matrix)
 
-    def test_6_featureAlignment_openswath_best_overall(self):
+    def test_6_featureAlignment_openswath_localMST(self):
         script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
         filename = os.path.join(self.datadir, "feature_alignment_openswath_input_1.csv")
         expected_outcome = os.path.join(self.datadir, "feature_alignment_6_output_1_ids.csv")
@@ -180,7 +180,7 @@ class TestFeatureAlignment(unittest.TestCase):
         os.remove(tmpfilename_ids)
         os.remove(tmpfilename_matrix)
 
-    def test_7_featureAlignment_openswath_best_overall(self):
+    def test_7_featureAlignment_openswath_localMST_lowess(self):
         script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
         filename = os.path.join(self.datadir, "feature_alignment_7_openswath_input.csv")
         expected_outcome_ids = os.path.join(self.datadir, "feature_alignment_7_output_1_ids.csv")
@@ -198,6 +198,31 @@ class TestFeatureAlignment(unittest.TestCase):
         self.exact_diff(tmpfilename, expected_outcome, header_exclude = ["align_origfilename"])
         self.exact_diff(tmpfilename_ids, expected_outcome_ids)
         self.exact_diff(tmpfilename_matrix, expected_matrix_outcome)
+
+        os.remove(tmpfilename)
+        os.remove(tmpfilename_ids)
+        os.remove(tmpfilename_matrix)
+
+    @attr('PTM_testing')
+    def test_8_featureAlignment_openswath_PTM(self):
+        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
+        filename = os.path.join(self.datadir, "feature_alignment_8_openswath_input.csv")
+        expected_outcome_ids = os.path.join(self.datadir, "feature_alignment_8_output_1_ids.csv")
+        expected_matrix_outcome = os.path.join(self.datadir, "feature_alignment_8_output_2_matrix.csv")
+        expected_outcome = os.path.join(self.datadir, "feature_alignment_8_output_3.csv")
+        tmpfilename = "featureAlignment_8.out.tmp"
+        tmpfilename_ids = "featureAlignment_8.out.tmp_idsonly.csv"
+        tmpfilename_matrix = "featureAlignment_8.out.tmp_matrix.tsv"
+
+        params =  "--method LocalMSTAllCluster --max_fdr_quality 0.4 --matrix_output_method RT --realign_method none --max_rt_diff 800"
+        args = "--in %s --out %s --out_ids %s --out_matrix %s %s" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix, params)
+
+        cmd = "python %s %s" % (script, args)
+        print(cmd)
+        sub.check_output(cmd,shell=True)
+        
+        # TODO 
+        # self.exact_diff
 
         os.remove(tmpfilename)
         os.remove(tmpfilename_ids)
