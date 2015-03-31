@@ -628,6 +628,8 @@ class PTMGroupResolver(object):
             pepClusterList = self.groupClusters(peptide_list)
 
             # Iterate through all available peptides and compare them against each other
+            pepCompMatrix = [ [ [] for i in range(len(pepClusterList))] for j in range(len(pepClusterList)) ]
+
             for i in range(len(pepClusterList)):
                 mpep1 = pepClusterList[i][0]
                 allclusters1 = pepClusterList[i][1]
@@ -660,7 +662,46 @@ class PTMGroupResolver(object):
                     cluster_pep2 = allclusters2[1]
 
                     overlap = self.computeOverlap(runs, cluster_pep1, cluster_pep2, maximal_median_diff)
-                    print("compare peptde %s with peptide %s, found overlap in %s out of %s runs" % (mpep1.getLabel(), mpep2.getLabel(), overlap, len(runs)) )
+                    print("compare peptide %s with peptide %s, found overlap in %s out of %s runs" % (mpep1.getLabel(), mpep2.getLabel(), overlap, len(runs)) )
+
+                    print("----------------------" )
+                    clusterCompMatrix = [ [ [] for ii in range(len(allclusters1))] for jj in range(len(allclusters1)) ]
+                    for k1, cluster_pep1 in allclusters1.items():
+                        for k2, cluster_pep2 in allclusters2.items():
+
+                            overlap = self.computeOverlap(runs, cluster_pep1, cluster_pep2, maximal_median_diff)
+                            print("compare cluster %s of peptide 1 with cluster %s peptide 2, found overlap in %s out of %s runs" % (k1, k2, overlap, len(runs)) )
+                            if overlap == 0:
+                                # TODO zero overlap is not really realistic, minimize overlap?
+                                # 
+                                # if there is possibility for overlap, then the
+                                # PTMs might be so close in RT that
+                                # differentiating them is anyways very hard and
+                                # potentially infeasible with this approach
+                                # 
+                                print("    == No overlap, this seems like a reasonable option")
+
+                            pep1_best_m_score = numpy.min([p.get_fdr_score() for p in cluster_pep1])
+                            pep2_best_m_score = numpy.min([p.get_fdr_score() for p in cluster_pep2])
+                            print("    Best m_score of cluster %s of peptide 1: %s" % (k1, pep1_best_m_score) )
+                            print("    Best m_score of cluster %s of peptide 2: %s" % (k2, pep2_best_m_score) )
+
+                            clusterCompMatrix[k1-1][k2-1] = (overlap, pep1_best_m_score, pep2_best_m_score)
+
+                    pepCompMatrix[i][j] = clusterCompMatrix
+
+            # Processing of computed matrix
+            #  -> here we simply print it
+            for i in range(len(pepCompMatrix)):
+                for j in range(i+1, len(pepCompMatrix[i])):
+
+                    print("Matrix", i, j, ":", pepCompMatrix[i][j])
+                    for matrixRow in pepCompMatrix[i][j]:
+                        for overlap, score1, score2 in matrixRow:
+                            if overlap == 0:
+                                print overlap, score1, score2, "<-- feasible option (no overlap)!"
+                            else:
+                                print overlap, score1, score2
 
     def groupClusters(self, v):
         """
