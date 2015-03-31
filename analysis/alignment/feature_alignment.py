@@ -561,6 +561,7 @@ def handle_args():
 
     experimental_parser.add_argument('--disable_isotopic_grouping', action='store_true', default=False, help="Disable grouping of isotopic variants by peptide_group_label, thus disabling matching of isotopic variants of the same peptide across channels. If turned off, each isotopic channel will be matched independently of the other. If enabled, the more certain identification will be used to infer the location of the peak in the other channel.")
     experimental_parser.add_argument('--use_dscore_filter', action='store_true', default=False)
+    experimental_parser.add_argument('--resolvePTMs', action='store_true', default=False)
     experimental_parser.add_argument("--dscore_cutoff", default=1.96, type=float, help="Quality cutoff to still consider a feature for alignment using the d_score: everything below this d-score is discarded", metavar='1.96')
     experimental_parser.add_argument("--nr_high_conf_exp", default=1, type=int, help="Number of experiments in which the peptide needs to be identified with high confidence (e.g. above fdr_curoff)", metavar='1')
     experimental_parser.add_argument("--readmethod", dest="readmethod", default="minimal", help="Read full or minimal transition groups (minimal,full)", metavar="minimal")
@@ -818,7 +819,8 @@ def main(options):
             for p in mpep.getAllPeptides():
                 p.unselect_all()
 
-    PTMGroupResolver().resolvePTMGroups(multipeptides, runs)
+    if options.resolvePTMs:
+        PTMGroupResolver().resolvePTMGroups(multipeptides, runs)
 
     # print statistics, write output
     start = time.time()

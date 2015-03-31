@@ -214,7 +214,7 @@ class TestFeatureAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_8.out.tmp_idsonly.csv"
         tmpfilename_matrix = "featureAlignment_8.out.tmp_matrix.tsv"
 
-        params =  "--method LocalMSTAllCluster --max_fdr_quality 0.4 --matrix_output_method RT --realign_method none --max_rt_diff 800"
+        params =  "--method LocalMSTAllCluster --max_fdr_quality 0.4 --matrix_output_method RT --realign_method none --max_rt_diff 800 --resolvePTMs"
         args = "--in %s --out %s --out_ids %s --out_matrix %s %s" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix, params)
 
         cmd = "python %s %s" % (script, args)
