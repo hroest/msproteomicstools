@@ -53,7 +53,7 @@ class PrecursorGroup():
         self.precursors_ = []
 
     def __str__(self):
-        return "PrecursorGroup %s" % (self.getPeptideGroupLabel())
+        return "PrecursorGroup %s of Run %s" % (self.getPeptideGroupLabel(), self.run_) 
 
     def __iter__(self):
         for precursor in self.precursors_:

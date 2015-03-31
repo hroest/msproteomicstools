@@ -48,10 +48,12 @@ class Multipeptide():
 
     def __str__(self):
         if len(self.getPrecursorGroups()) > 0:
-            return "Precursors of %s runs, identified by %s." % (self._nr_runs, self.getPrecursorGroups()[0].getPeptideGroupLabel())
+            return "Precursors of %s runs, identified by %s" % (self._nr_runs, self.getLabel() )
         else:
-            return "Empty set of precursors."
+            return "Empty set of precursors"
   
+    def getLabel(self):
+        return self.getPrecursorGroups()[0].getPeptideGroupLabel()
     # 
     ## Getters  / Setters
     # 

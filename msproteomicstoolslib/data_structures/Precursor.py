@@ -280,6 +280,9 @@ class Precursor(PrecursorBase):
           return None
 
     def getClusteredPeakgroups(self):
+      """
+      Return all peakgroups that belong to at least one cluster
+      """
       selected = [i for i,pg in enumerate(self.cluster_ids_) if pg != -1]
       for index in selected:
         result = self.peakgroups_[index]
