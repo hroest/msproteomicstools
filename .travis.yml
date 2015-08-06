@@ -5,6 +5,7 @@ python:
   # - "3.2" # no rpy2 or biopython support for Python3
   - "3.3"
 before_install:
+ - ls /usr/share/R/include/R_ext/
  - sudo apt-get install -qq python-numpy python-scipy python-rpy2 python-lxml python-biopython python-xlwt python-scikits-learn  python-cluster
  - sudo apt-get install -qq r-base-dev python-dev
 # - git clone https://github.com/pymzml/pymzML.git
