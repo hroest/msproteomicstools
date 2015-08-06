@@ -12,6 +12,7 @@ before_install:
  - ls /usr/share/R/include/R_ext/
  - head /usr/share/R/include/R_ext/Lapack.h
  - md5sum /usr/share/R/include/R_ext/Lapack.h
+ - cat /etc/R/Renviron
 # - git clone https://github.com/pymzml/pymzML.git
 # - "cd pymzML && python setup.py install && cd .."
  - git clone https://github.com/hroest/scikit-datasmooth.git
