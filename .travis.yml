@@ -22,7 +22,8 @@ before_install:
  - git clone https://github.com/hroest/scikit-datasmooth.git
  - "cd scikit-datasmooth && python setup.py install && cd .."
 install:
-  - pip install rpy2 # for Python 3.3
+  # for Python 2.7 and 3.3 w/o system packages
+  - pip install rpy2==2.2.5
   - travis_retry python setup.py develop
 script: 
   - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then nosetests -w test/; fi
