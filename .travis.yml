@@ -8,7 +8,7 @@ before_install:
  # - sudo echo 'deb http://cran.rstudio.com/bin/linux/ubuntu precise/' >> /etc/apt/sources.list
  - sudo add-apt-repository "deb http://cran.rstudio.com/bin/linux/ubuntu precise/"
  - sudo apt-get update
- - sudo apt-get install -qq python-numpy python-scipy python-rpy2 python-lxml python-biopython python-xlwt python-scikits-learn  python-cluster
+ - sudo apt-get install -qq python-numpy python-scipy python-lxml python-biopython python-xlwt python-scikits-learn  python-cluster
  - sudo apt-get install -qq r-base-dev python-dev
  - ls /usr/share/
  - ls /usr/share/R/
