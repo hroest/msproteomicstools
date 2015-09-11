@@ -43,6 +43,8 @@ import random
 from numpy import median, absolute
 from msproteomicstoolslib.algorithms.shared.bounds import lower_bound, upper_bound
 
+import msproteomicstoolslib.optimized as optimized
+
 def get_smooting_operator(use_scikit=False, use_linear=False, use_external_r = False, tmpdir=None):
   if use_linear: 
       return SmoothingLinear()
@@ -381,11 +383,13 @@ class LowessSmoothingBase:
     def initialize(self, data1, data2):
         result = self._initialize(data1, data2)
 
-        self.internal_interpolation = SmoothingInterpolation()
-        self.internal_interpolation.initialize(result[0], result[1])
+        # self.internal_interpolation = SmoothingInterpolation()
+        # self.internal_interpolation.initialize(result[0], result[1])
+        self.internal_interpolation = optimized.Cy_LinearInterpolator()
+        self.internal_interpolation.initialize(numpy.array(result[0]), numpy.array(result[1]) )
 
     def predict(self, xhat):
-        return self.internal_interpolation.predict(xhat)
+        return self.internal_interpolation.predict(numpy.array(xhat))
 
 class LowessSmoothingBiostats(LowessSmoothingBase):
     """Smoothing using Lowess smoother and then interpolate on the result
