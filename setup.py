@@ -2,8 +2,12 @@
 
 import os
 from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Build import cythonize
 
 # get py-earth from https://github.com/jcrudy/py-earth/
+
+ext_modules = cythonize("msproteomicstoolslib/_optimized.pyx", language="c++")
 
 import fnmatch
 all_scripts = []
@@ -61,6 +65,7 @@ setup(name='msproteomicstools',
       extras_require = {
           'RSmoothing' : ["rpy2"]
       },
+      ext_modules=ext_modules,
       test_suite="nose.collector",
       tests_require="nose",
       )
