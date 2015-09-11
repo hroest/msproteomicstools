@@ -48,6 +48,9 @@ def doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, p
     """
     Bayesian alignment step 1:
         - collect the h0 data and the peakgroup data for all peakgroups
+
+    For each run, iterate through all peakgroups present and determine the
+    gaussian shape (noise distribution) around each peakgroup
     """
 
 
@@ -86,9 +89,9 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
     Bayesian computation of the contribution of all other runs to the probability
 
     Loops over all runs r to compute the probabilities, for each run:
-        - (i) RT transfer from source to target r
-        - (ii) Compute  p(D_r|B_{jm} ) = \sum_{q=1}^{k} p(D_r | B_{qr} ) * p(B_{qr}|B_{jm})
-        - (iii) Compute  transition probability p(B_{qr}|B_{jm} )
+        - (i)   RT transfer from source to target r
+        - (ii)  Compute p(D_r|B_{jm} ) = \sum_{q=1}^{k} p(D_r | B_{qr} ) * p(B_{qr}|B_{jm})
+        - (iii) Compute transition probability p(B_{qr}|B_{jm} )
 
     For step (iii), there are different options available how to compute the
     transition probability p(B_{qr}|B_{jm}), see ptransfer option:
