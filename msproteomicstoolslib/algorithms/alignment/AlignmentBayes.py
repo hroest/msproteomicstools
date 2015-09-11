@@ -37,6 +37,8 @@ $Authors: Hannes Roest$
 
 import numpy
 import numpy as np
+import math
+import random
 import scipy.stats
 import time
 from msproteomicstoolslib.algorithms.alignment.Multipeptide import Multipeptide
@@ -408,8 +410,29 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     print("Bayesian alignment took %0.2fs" % (time.time() - start) )
 
 
-def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, verbose=False):
-    import math
+def getPG(mpep, run, pg):
+
+    if not mpep.hasPrecursorGroup(run):
+        if pg == 0:
+            # Just a missing one, we only want to have p(H0) which in this
+            # case should be 1.0 as we do not have a peakgroup -> 100%
+            # chance of missing value
+            return None
+        else:
+            # Bug!
+            raise Exception("Bug, requested pg %s from a run that has no peakgroups" % pg)
+
+    prgr = mpep.getPrecursorGroup(run)
+
+    if len( prgr.getAllPrecursors() ) > 1:
+        raise Exception("Not implemented for precursor groups...")
+    return prgr.getAllPrecursors()[0].getAllPeakgroups()[pg-1]
+    # return ( list(list(mpep.getAllPeptides())[ run ].getAllPeakgroups())[pg - 1] )
+    
+def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width = 30, verbose=False):
+
+    # transfer_width = 100
+    # transfer_width = 30
 
     if verbose:
         r = 1.0
@@ -426,16 +449,13 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
         print "Get starting point with run", tree_start, " with pg", pg
         # print pg_per_run
 
-    def getPG(run, pg):
-        return ( list(list(mpep.getAllPeptides())[ run ].getAllPeakgroups())[pg - 1] )
-
     # keep track of all positions of peakgroups from previous runs
     rt_positions = {}
 
     current_score = 0.0
     if pg != 0:
         ## mypg = list(list(mpep.getAllPeptides())[ tree_start ].getAllPeakgroups())[pg - 1]
-        mypg = getPG( tree_start, pg)
+        mypg = getPG(mpep,  tree_start, pg)
         ### rt = mypg.get_normalized_retentiontime()
         rt = float(mypg.get_value("RT"))
         ## print "store RT", rt
@@ -445,8 +465,10 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
     else:
         # mypg = list(list(mpep.getAllPeptides())[ tree_start ].getAllPeakgroups())[0]
         ## if not pg_per_run[tree_start] == 0:
-        mypg = getPG( tree_start, 1)
-        current_score += math.log(float(mypg.get_value("h0_score")))
+        mypg = getPG(mpep,  tree_start, 0)
+        if mypg is not None:
+            # Only append if we have a pg in this run (otherwise p=1 and we add zero in log-space)
+            current_score += math.log(float(mypg.get_value("h0_score")))
     if verbose:
         print mypg, "my pg with p = %s" % (float(mypg.get_value("h_score"))), " start with scoree !! ", current_score
         print " start with scoree !! ", current_score
@@ -461,7 +483,7 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
         curr_run = e[1]
         pg = selection_vector_new[ curr_run ]
         if pg != 0:
-            mypg = getPG( curr_run, pg )
+            mypg = getPG(mpep,  curr_run, pg )
             # p( e[1] ) -> we need p( e[1] | e[0] ) 
 
             current_score += math.log(float(mypg.get_value("h_score")))
@@ -474,11 +496,14 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
             rt_curr = float(mypg.get_value("RT"))
             if rt_prev is not None:
 
-                source = list( mpep.getAllPeptides() )[prev_run].run.get_id()
-                target = list( mpep.getAllPeptides() )[curr_run].run.get_id()
+                ## source = list( mpep.getAllPeptides() )[prev_run].run.get_id()
+                ## target = list( mpep.getAllPeptides() )[curr_run].run.get_id()
+                source = prev_run
+                target = curr_run
 
                 expected_rt = tr_data.getTrafo(source, target).predict(
-                    [ rt_prev ] )[0]
+                    [ float(rt_prev) ] )[0]
+
                 if verbose:
                     print "try to get ", source, target
                     print "source RT ", rt_prev
@@ -486,24 +511,25 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
                     print "current_ RT ", rt_curr
 
                 # Tr to compute p(curr_run | prev_run )
-
-                transfer_width = 100
-                p_Bqr_Bjm = scipy.stats.norm.pdf(rt_curr,
-                                                 loc = expected_rt ,
-                                                 scale = transfer_width)
-                # print "current location", p_Bqr_Bjm
                 p_Bqr_Bjm = scipy.stats.norm.cdf(rt_curr,
                                                  loc = expected_rt ,
                                                  scale = transfer_width)
                 # TODO use logcfd
                 # print "current cdf", p_Bqr_Bjm
-                # print "cdf param cdf", p_Bqr_Bjm
+                ## print "cdf param cdf", p_Bqr_Bjm
                 cdf_v = p_Bqr_Bjm
                 if (cdf_v > 0.5):
                     cdf_v = 1-cdf_v
 
 
-                current_score += math.log(cdf_v)
+                # Catch cases where we basically have zero probability
+                #  -> simply add a very large negative number to the score to
+                #     make it unlikely to ever pick such a combination
+                if cdf_v > 0.0:
+                    current_score += math.log(cdf_v)
+                else:
+                    current_score += -99999999999999999999999
+
                 # print current_score
 
                 if verbose:
@@ -522,8 +548,12 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
 
         else:
             # We have selected H0 here, thus append the h0 score
-            mypg = list(list(mpep.getAllPeptides())[ curr_run ].getAllPeakgroups())[0]
-            current_score += math.log(float(mypg.get_value("h0_score")))
+            ## mypg = list(list(mpep.getAllPeptides())[ curr_run ].getAllPeakgroups())[0]
+            mypg = getPG(mpep, curr_run, 0)
+
+            if mypg is not None:
+                # Only append if we have a pg in this run (otherwise p=1 and we add zero in log-space)
+                current_score += math.log(float(mypg.get_value("h0_score")))
             rt_prev = rt_positions.get( prev_run, None)
 
             if verbose:
@@ -531,15 +561,17 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
                 print "select h0 for run ", curr_run
                 print "new score:", current_score
 
-
             # store our current position 
             if rt_prev is not None:
 
-                source = list( mpep.getAllPeptides() )[prev_run].run.get_id()
-                target = list( mpep.getAllPeptides() )[curr_run].run.get_id()
+                ## source = list( mpep.getAllPeptides() )[prev_run].run.get_id()
+                ## target = list( mpep.getAllPeptides() )[curr_run].run.get_id()
+                source = prev_run
+                target = curr_run
 
                 expected_rt = tr_data.getTrafo(source, target).predict(
-                    [ rt_prev ] )[0]
+                    [ float(rt_prev) ] )[0]
+
                 # We did not currently select a peakgroup, so this
                 # would basically mean that our assumption 
                 #
@@ -560,17 +592,66 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
     # print "total score", current_score
     return current_score
 
-def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep, tr_data, n_runs, f=2.5,verbose=False):
+def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
+            tr_data, n_runs, transfer_width, f=1.0, verbose=False, biasSelection=False):
         """
         f = 1.0
         # 1 seems too tame
         # 5 seems very wild
-        f = 2.5
+        f = 2.5 # seems reasonable but still pretty wild
+## New score model
+
+  # f = 0.1, biasSelection=True
+  MCMCM Stats:
+    Nr it:  50000
+    Burnin time:  43
+    Time in best config:  32756
+
+  # f = 1.0, biasSelection=True
+  MCMCM Stats: 
+    Nr it:  50000
+    Burnin time:  21
+    Time in best config:  30386
+
+
+  # f = 2.0, biasSelection=True
+  MCMCM Stats: 
+    Nr it:  50000
+    Burnin time:  126
+    Time in best config:  27036
+
+
+  # f = 1.0, biasSelection=False
+  MCMCM Stats: 
+    Nr it:  50000
+    Burnin time:  165
+    Time in best config:  39079
+
+
+  # f = 2.0, biasSelection=False
+  MCMCM Stats:
+    Nr it:  50000
+    Burnin time:  49
+    Time in best config:  36224
+
+  # f = 5.0, biasSelection=False
+  MCMCM Stats: 
+    Nr it:  50000
+    Burnin time:  3993
+    Time in best config:  26278
+
+
+
         """
 
-        prev_score = evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data)
+
+        burn_in_time = 0
+        time_in_best_config = 0
+
+        prev_score = evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width)
         best_score = prev_score
         best_config = selection_vector
+        BIAS_PEAKGROUPS=1
 
         if verbose:
             print "start: ", prev_score, selection_vector
@@ -582,52 +663,101 @@ def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep, tr_
             # kprint "selection vector", selection_vector
 
             # Permute vector
-            import random
-            select_run = random.randint(0, n_runs-1 )
+            select_run = pg_per_run.keys()[ random.randint(0, n_runs-1 ) ]
             # print "seelect run", select_run
             select_pg = random.randint(0, pg_per_run[select_run])
             # print "seelect pg", select_pg
+            if biasSelection:
+                # if we bias our selection, in half of the cases we only
+                # propose steps that are either zero or first peakgroups. Make sure that for 
+                if random.random() > 0.5:
+                    opg = select_pg
+                    select_pg = random.randint(0, min(BIAS_PEAKGROUPS, pg_per_run[select_run]))
+                    print "bias selection, change pg from %s to %s" %(opg, select_pg)
+
+
 
             if selection_vector[select_run] == select_pg:
                 # its equal, no step 
                 continue
 
             #update vector
-            selection_vector_new = selection_vector[:]
+            ## selection_vector_new = selection_vector[:]
+            selection_vector_new = selection_vector.copy()
             selection_vector_new[select_run] = select_pg
 
             ##
             ## eval vector
             #
 
-            score = evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data)
+            score = evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width)
             delta_score = score - prev_score
             if verbose:
-                print prev_score, "proposed: ", selection_vector_new, score, " -> delta",  delta_score
+                print prev_score, "proposed: ", selection_vector_new.values(), score, " -> delta",  delta_score
+
+            r = random.random()
+            accept = delta_score > 0 or r < math.exp(delta_score/f)
 
             if score >= best_score:
+                if score > best_score:
+                    # we have not seen this score before, it is better!
+                    burn_in_time = i
+                    time_in_best_config = 0
+                    # print 'set time best config to zero', score, best_score
+                elif math.fabs(score - best_score) < 1e-6:
+                    # we return to the best score
+                    time_in_best_config += 1
+                    # print 'return to best score ', score, best_score
+                else:
+                    # print 'WHAT here? ', score, best_score
+                    pass
                 best_score = score 
                 best_config = selection_vector_new
+            else:
+                # new score is worse, if we do not accept then it means we stay
+                # with the same score
+                if not accept:
+                    time_in_best_config += 1
     
-            r = random.random()
-            import math
-            #if delta_score > -5.0:
-            r = random.random()
-            if r < math.exp(delta_score/f):
+            # If we accept the new score, change the selection vector and the score
+            if accept:
                 if verbose:
-                    print "accept", r, math.exp(delta_score/f)
+                    print "accept", r, "exp^%s" %(delta_score/f)
                 selection_vector = selection_vector_new
                 prev_score = score
 
+        if verbose:
+            print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+            print "  MCMC Stats: "
+            print "    Nr it: ", nrit
+            print "    Burnin time: ", burn_in_time
+            print "    Time in best config: ", time_in_best_config
         return best_score, best_config
 
 def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
                         smoothing_method, doPlot=True, outfile=None, transfer_fxn="bartlett"):
     """
     Bayesian alignment
+
+    smoothing seems to change from 36 seconds to 9 seconds (gain 28 seconds)
+    erfc in C seems to change from 26 seconds to 4 seconds (gain 22 seconds)
+
+    79 seconds python / scipy smoothing
+    52 seconds cython smoothing
+    43 seconds no smoothing
+
+    52 seconds scipy cdf 
+    30 seconds using C erfc
+    26 seconds using no cdf calculation
+
+    takes ca 14 seconds to setup everything and start computing ... 
+
+    from an initial 65 seconds for 74 peptides * 10 runs  = 10 runpeptides / second
+    -> we are down to 16 seconds for 74 peptides * 10 runs = 46 runpeptides / second
     """
 
     doPlot = False
+    verbose = False
     
     fh = None
     if outfile is not None:
@@ -654,6 +784,8 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
     # Increase uncertainty by a factor of 2.5 when transferring probabilities
     # from one run to another
     transfer_width = peak_sd * 2.5
+
+    transfer_width = 30.0
 
     # Number of bins to obtain reasonable resolution (should be higher than the
     # above gaussian widths).  On a 600 second chromatogram, 100 bins lead to a
@@ -694,33 +826,35 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
 
     tree_mapped = [ (exp.runs[a].get_id(), exp.runs[b].get_id()) for a,b in tree]
 
+    print "Tree"
+    print tree
     print tree_mapped
 
     n_runs = len(exp.runs)
 
     run_mapping = [r.get_id() for r in exp.runs]
-    # n_runs = len(exp.runs)
-
-    print tree
 
     print "Select path through tree"
 
-    ndict = {}
-    for e in tree:
-        print e
-        tmp = ndict.get(e[0], 0)
-        tmp += 1
-        ndict[ e[0] ] = tmp
-        tmp = ndict.get(e[1], 0)
-        tmp += 1
-        ndict[ e[1] ] = tmp
+    def getOuterNodes(tree_in):
+        # Node dictionary, keep track of which nodes have how many connections
+        ndict = {} 
+        for e in tree_in:
+            tmp = ndict.get(e[0], 0)
+            tmp += 1
+            ndict[ e[0] ] = tmp
+            tmp = ndict.get(e[1], 0)
+            tmp += 1
+            ndict[ e[1] ] = tmp
 
-    print ndict
-    starting_values = [ k for k,v in ndict.iteritems() if v == 1]
-    print starting_values
+        print "node dict", ndict
+        outer_nodes = [ k for k,v in ndict.iteritems() if v == 1]
+        return outer_nodes 
+
+    starting_values  = getOuterNodes(tree_mapped)
+    print "Possiblel starting points", starting_values
 
     def walkTree(tree, start, visited):
-
         res = []
         for e in tree:
             if e in visited:
@@ -737,73 +871,95 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
                     res.extend( walkTree(tree, e[0], visited) )
         return res
 
-
     ### tree = [ (0,1), (1,2), (1,3), (1,4), (2,5), (2,6)]
     tree_start = starting_values[0]
     print "start ", tree_start
 
     tmp = []
-    tree_path = walkTree(tree, tree_start, tmp)
+    tree_path = walkTree(tree_mapped, tree_start, tmp)
 
-    print tree_path
-    
+    print "path", tree_path
+
+    cnt_better_greedy = 0
+    cnt = 0
+
+    greedy_select_zero = 0
+    bayes_select_zero = 0
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Step 2 : Iterate through all peptides
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     for pepcnt,mpep in enumerate(multipeptides):
 
-        # Step 2.1 : Compute the retention time space (min / max)
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-        rts = [pg.get_normalized_retentiontime()
-                for p in mpep.getAllPeptides()
-                    for pg in p.getAllPeakgroups() ]
+        ### # Step 2.1 : Compute the retention time space (min / max)
+        ### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+        ### rts = [pg.get_normalized_retentiontime()
+        ###         for p in mpep.getAllPeptides()
+        ###             for pg in p.getAllPeakgroups() ]
 
-        min_rt = min(rts)
-        max_rt = max(rts)
-        min_rt -= abs(max_rt - min_rt) * rt_window_ext
-        max_rt += abs(max_rt - min_rt) * rt_window_ext
+        ### min_rt = min(rts)
+        ### max_rt = max(rts)
+        ### min_rt -= abs(max_rt - min_rt) * rt_window_ext
+        ### max_rt += abs(max_rt - min_rt) * rt_window_ext
 
-        # Hack to ensure that the two are never equal
-        if min_rt == max_rt:
-            min_rt -= peak_sd
-            max_rt += peak_sd
+        ### # Hack to ensure that the two are never equal
+        ### if min_rt == max_rt:
+        ###     min_rt -= peak_sd
+        ###     max_rt += peak_sd
 
-
-        # Step 2.2 : Collect peakgroup data across runs
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-        h0 = {}
-        run_likelihood = {}
-        x = np.linspace(min_rt, max_rt, bins)
-        ## doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, peak_sd)
+        ### # Step 2.2 : Collect peakgroup data across runs
+        ### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+        ### h0 = {}
+        ### run_likelihood = {}
+        ### x = np.linspace(min_rt, max_rt, bins)
+        ### ## doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, peak_sd)
 
         ## if len(p.getAllPeakgroups()) < 2*len(mpep.getAllPeptides()):
         ##     # print "continue"
         ##     continue
 
-        print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
+        ## print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
+
+        ## pp = "11047_IISYLPDTTYLNENM(UniMod:35)R_3_run0"
+        ## verbose = False
+        ## if mpep.getAllPeptides()[0].get_id() != pp:
+        ##     continue
+        ## else:
+        ##     verbose = True
+
+        if verbose:
+            print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
 
         # n_runs = len(mpep.getAllPeptides())
-        selection_vector = [0 for i in range(n_runs)]
+        # selection_vector = [0 for i in range(n_runs)]
+        selection_vector = dict([(r.get_id(), 0) for r in exp.runs])
+
         # print "use nr runs", n_runs
-        print "n runs", n_runs
-        print "all peps", len( mpep.getAllPeptides() )
+        ## print "n runs", n_runs
+        ## print "all peps", len( mpep.getAllPeptides() )
 
-        ## TODO some runs have zero pg !! 
-        pg_per_run = [len( p.getAllPeakgroups() ) for p in mpep.getAllPeptides()]
-        print pg_per_run
-        print len(pg_per_run)
-        # print pg_per_run
-        prev_score = evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data)
+        ### pg_per_run = dict([ [p.run.get_id(), len( p.getAllPeakgroups() )] for p in mpep.getAllPeptides()])
+        #### pg_per_run = dict([ [r.get_id(), len( p.getAllPeakgroups() )] for r in exp.runs])
+        pg_per_run = {}
+        for r in exp.runs:
+            if mpep.hasPrecursorGroup(r.get_id()):
+                g = mpep.getPrecursorGroup(r.get_id()).getAllPrecursors()
+                assert len(g) == 1
+                pg_per_run[r.get_id()] = len(g[0].getAllPeakgroups())
+            else:
+                pg_per_run[r.get_id()] = 0
 
-        # print "initial", prev_score
-        r = 1.0
-        for a in pg_per_run:
-            r = r*(a+1)
-        print "combinatorics of", pg_per_run, "giving", r, "combinations. initial score", prev_score
+        if verbose:
+            print "pg_per_run", pg_per_run, len(pg_per_run)
+            print "sel vec", selection_vector
+        prev_score = evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width)
+
+        nr_comb = 1.0
+        for a in pg_per_run.values():
+            nr_comb = nr_comb*(a+1)
 
         """
-        Assume that the path is 1 -> 2 -> 3
+        Assume that we have three runs and the path is 1 -> 2 -> 3 
 
         we now assume that p(1|2,3) = p(1|2) e.g that if we know 2 than the
         position of pg in run 1 is fully determined. 
@@ -814,26 +970,70 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
 
         """
 
-        import random
-        for i in range(10):
+        nriterations = 1000
+        # minimum value: 100 * nr_runs
+        # safe value: 100 * nr_runs * safety = 1000 * nr_runs
+
+        for i in range(0):
 
             # random starting vectors
-            v = []
-            for i in range(n_runs):
-                v.append( random.randint(0, pg_per_run[i]) )
+            v = {}
+            for r in exp.runs:
+                if pg_per_run[r.get_id()] != 0:
+                    v[r.get_id()] = random.randint(0, pg_per_run[r.get_id()])
+                else:
+                    v[r.get_id()] = 0
 
-            best_score, best_config = mcmcrun(50, v, tree_path,
+            best_score, best_config = mcmcrun(nriterations, v, tree_path,
                                               tree_start, pg_per_run, mpep,
-                                              tr_data, n_runs, verbose=False)
-            # print "random vec res", best_score, best_config
+                                              tr_data, n_runs, transfer_width=transfer_width, verbose=False)
+            print "random vec res", best_score, best_config.values()
+            print "2222222222222222222  ", 
 
-        best_score, best_config = mcmcrun(500, selection_vector, tree_path,
+        for i in range(0):
+
+            # zero starting vector
+            v = dict([(r.get_id(), 0) for r in exp.runs])
+            best_score, best_config = mcmcrun(nriterations, v, tree_path,
+                                              tree_start, pg_per_run, mpep,
+                                              tr_data, n_runs, transfer_width=transfer_width, verbose=False)
+            print "9999999 zero vec res", best_score, best_config.values()
+            print "44444444444444  ", 
+
+        best_score, best_config = mcmcrun(nriterations, selection_vector, tree_path,
                                           tree_start, pg_per_run, mpep,
-                                          tr_data, n_runs, verbose=False)
+                                          tr_data, n_runs, transfer_width=transfer_width, verbose=False)
+        ## print "zero start vec res", best_score, best_config.values()
+
 
         #print "1111111111111111111111111111111111111111111111111111111111111111 "
-        print "final result", best_config, best_score, evalvec(tree_path, best_config, tree_start, pg_per_run, mpep, tr_data, False), \
-        "cmp with greedy", evalvec(tree_path, [1 for i in range(n_runs)], tree_start, pg_per_run, mpep, tr_data, False)
+        greedy = getGreedyVec(mpep, pg_per_run)
+
+
+        greedy_res = evalvec(tree_path, greedy, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, verbose=False)
+
+        greedy_select_zero += len([v for v in greedy.values() if v == 0])
+        bayes_select_zero += len([v for v in best_config.values() if v == 0])
+
+        cnt += 1
+        ## print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
+        ## print "r:", best_config.values(), best_score, \
+        ##         "greedy:", greedy_res, greedy.values(), "%s combs" % nr_comb, "at pcnt %.2f" % (cnt_better_greedy *100.0 / cnt), \
+        ##         " zeros selected %.2f" % (greedy_select_zero*100.0 / (bayes_select_zero+1))
+
+        if best_score > greedy_res:
+            cnt_better_greedy += 1
+            print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
+            print "r:", best_config.values(), best_score, \
+                    "greedy:", greedy_res, greedy.values(), "%s combs" % nr_comb, "at pcnt %.2f" % (cnt_better_greedy *100.0 / cnt), \
+                    " zeros selected %.2f" % (greedy_select_zero*100.0 / (bayes_select_zero+1))
+        elif best_score < greedy_res:
+            print "8888888888888888888888888888888888888888888888888888"
+            print "greedy better!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", mpep.getAllPeptides()[0].get_id(), pepcnt
+            print "r:", best_config.values(), best_score, \
+                    "greedy:", greedy_res, greedy.values(), "%s combs" % nr_comb, "at pcnt %.2f" % (cnt_better_greedy *100.0 / cnt), \
+                    " zeros selected %.2f" % (greedy_select_zero*100.0 / (bayes_select_zero+1))
+
         continue
 
         for p in mpep.getAllPeptides():
@@ -847,4 +1047,17 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
                                                                        float(pg.get_value("h0_score")))
         return
 
+def getGreedyVec(mpep, pg_per_run):
+    # greedy = dict([(r.get_id(), 1) for r in exp.runs])
+    greedy = {}
+    for k,v in pg_per_run.iteritems():
+        if v == 0:
+            greedy[k] = 0
+        else:
+            mypg = getPG(mpep, k, 1)
+            if float(mypg.get_value("m_score")) < 0.01:
+                greedy[k] = 1
+            else:
+                greedy[k] = 0
+    return greedy
 
