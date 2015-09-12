@@ -95,8 +95,8 @@ cdef class Cy_LinearInterpolator(object):
     @cython.wraparound(False)
     def predict(self, np.float64_t[:] values):
         cdef Py_ssize_t i
-        result = np.zeros((values.shape[0],), dtype=np.int64)
-        cdef np.int64_t[:] view = result
+        result = np.zeros((values.shape[0],), dtype=np.float64)
+        cdef np.float64_t[:] view = result
         for i in range(values.shape[0]):
             view[i] = self.predictSingleValue(values[i])
         return result
