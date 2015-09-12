@@ -6,6 +6,9 @@ cimport libc.stdlib
 cimport numpy as np
 import numpy as np
 from libcpp.vector cimport vector
+from libcpp.map cimport map
+from libcpp.string cimport string
+import random
 
 
 cdef extern from "algorithm":
@@ -17,6 +20,8 @@ cdef extern from "math.h":
     double c_erfc "erfc" (double x)
 cdef extern from "math.h":
     double c_log "log" (double x)
+cdef extern from "math.h":
+    double c_exp "exp" (double x)
 
 
 # http://stackoverflow.com/questions/28973153/cython-how-to-wrap-a-c-function-that-returns-a-c-object
@@ -134,7 +139,143 @@ def fast_score_update(double x, double current_score):
     if cdf_v > 0.0:
         return (current_score + c_log(cdf_v))
     else:
-        # current_score += -99999999999999999999999
         return (current_score - 999999999.0)
 
+
+def getScoreAndRT(mpep, run_id, pg, mypghash=None):
+        current_score = mypghash[run_id][pg][0]
+        score_h0 = mypghash[run_id][pg][2]
+        rt = mypghash[run_id][pg][2]
+        return (current_score, rt)
+
+def getH0Score(mpep, run_id, mypghash=None):
+        return mypghash[run_id][0]
+
+def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width = 30, verbose=False, mypghash=None):
+
+    cdef int pg
+    cdef double current_score
+    cdef double rt_curr, pg_score, rt
+
+    # 25 seconds up to here ...
+
+    # starting point
+    pg = selection_vector_new[ tree_start ]
+
+    # keep track of all positions of peakgroups from previous runs
+    rt_positions = {}
+
+    # Do everything for the first peakgroup !
+    current_score = 0.0
+    if pg != 0:
+        pg_score, rt = getScoreAndRT(mpep, tree_start, pg, mypghash)
+        rt_positions[ tree_start ] = rt
+        current_score += c_log(pg_score)
+    else:
+        # We have selected H0 here, thus append the h0 score
+        current_score += c_log( getH0Score(mpep, tree_start, mypghash) )
+
+    for e in tree_path:
+        ####
+        #### Compute p(e[1]|e[0])
+        ####
+        prev_run = e[0]
+        curr_run = e[1]
+        pg = selection_vector_new[ curr_run ]
+
+        # get the retention time position in the previous run
+        rt_prev = rt_positions.get( prev_run, None)
+
+        if pg != 0:
+            pg_score, rt_curr = getScoreAndRT(mpep, curr_run, pg, mypghash)
+            current_score += c_log(pg_score)
+
+            #
+            # p( e[1] ) -> we need to compute p( e[1] | e[0] ) 
+            #
+            #  -> get the probability that we have a peak in the current run
+            #  e[1] eluting at position rt_curr given that there is a peak in
+            #  run e[0] eluting at position rt_prev
+            #
+
+
+            if rt_prev is not None:
+
+                source = prev_run
+                target = curr_run
+                # Try to get fast version of trafo first, then try slow one
+                try:
+                    mytrafo = tr_data.getTrafo(source, target)
+                    expected_rt = mytrafo.internal_interpolation.predictSingleValue(rt_prev)
+                except AttributeError:
+                    expected_rt = tr_data.getTrafo(source, target).predict(
+                        [ float(rt_prev) ] )[0]
+
+                # 
+                # Tr to compute p(curr_run | prev_run )
+                # 
+                #  - compute normalized RT diff (mean, std normalized)
+                #  - use fast_score_update to compute probability, then add log(p) to the score
+                ###  # The code is equivalent to
+                ###  cdf_v = optimized.norm_cdf(norm_rt_diff)
+                ###  if (cdf_v > 0.5):
+                ###      cdf_v = 1-cdf_v
+                ###  
+                ###  if cdf_v > 0.0:
+                ###      return (current_score + c_log(cdf_v))
+                ###      current_score += math.log(cdf_v)
+                ###  else:
+                ###      current_score += -99999999999999999999999
+                norm_rt_diff = (expected_rt-rt_curr) / transfer_width
+                current_score = fast_score_update(norm_rt_diff, current_score)
+
+            else:
+                # no previous run, this means all previous runs were
+                # empty and we cannot add any RT so far
+                pass
+
+            # store our current position 
+            rt_positions[curr_run] = rt_curr
+
+        else:
+
+            # We have selected H0 here, thus append the h0 score
+            current_score += c_log( getH0Score(mpep, curr_run, mypghash) )
+
+            # store our current position 
+            if rt_prev is not None:
+
+                source = prev_run
+                target = curr_run
+
+                # Try to get fast version of trafo first, then try slow one
+                try:
+                    mytrafo = tr_data.getTrafo(source, target)
+                    expected_rt = mytrafo.internal_interpolation.predictSingleValue(rt_prev)
+                except AttributeError:
+                    expected_rt = tr_data.getTrafo(source, target).predict(
+                        [ float(rt_prev) ] )[0]
+
+
+                # We did not currently select a peakgroup, so this
+                # would basically mean that our assumption 
+                #
+                # p(curr_run| 1,2,..., prev_run, ... n) = p(curr_run|prev_run) 
+                #
+                # is not really valid any more, we would have to
+                # backtrack and figure out what the conditional
+                # independence assumpations were for prev_run and thus we would have
+                # 
+                # p(curr_run| 1,2,..., prev_run, prev_prev_run, ... n) = p(curr_run|prev_run, prev_prev_run) 
+                #
+                # where prev_prev_run was the run that was successor to prev_run.
+                # Currently we dont do this, we simply make a shortcut here
+                # We store the expected RT as the current one -> it is not
+                # the best idea but it still may do the job
+                rt_positions[curr_run] = expected_rt
+
+
+    # 38 seconds up to here ...
+
+    return current_score
 
