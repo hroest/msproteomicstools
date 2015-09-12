@@ -173,6 +173,165 @@ def getH0Score(mpep, run_id, mypghash=None):
 @cython.cdivision(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
+def pure_c_evalvec(list tree_path, dict selection_vector_new, string tree_start, mpep, tr_data, double transfer_width,
+                   map[string, map[int, vector[double] ] ] peakgroup_score_hash):
+
+    cdef int pg
+    cdef double current_score
+    cdef double rt_curr, pg_score, rt, norm_rt_diff, expected_rt
+
+    cdef map[string, map[int, vector[double] ] ].iterator mit
+    cdef map[int, vector[double] ].iterator mit2
+
+    # starting point
+    pg = selection_vector_new[ tree_start ]
+
+
+    # keep track of all positions of peakgroups from previous runs
+    #rt_positions = {}
+
+    cdef map[string, double] rt_positions_
+    cdef map[string, double].iterator rt_prev_
+    cdef string curr_run
+    cdef string prev_run
+    cdef string source
+    cdef string target
+
+    # Do everything for the first peakgroup !
+    current_score = 0.0
+    if pg != 0:
+        ## pg_score, rt = getScoreAndRT(mpep, tree_start, pg, mypghash)
+        pg_score = peakgroup_score_hash[tree_start][pg][0]
+        rt = peakgroup_score_hash[tree_start][pg][2]
+        rt_positions_[tree_start] = rt
+        current_score += c_log(pg_score)
+    else:
+        ## mit = peakgroup_score_hash.begin()
+        ## while mit != peakgroup_score_hash.end():
+        ##     print deref(mit).first, deref(mit).second.size()
+        ##     mit2 = deref(mit).second.begin()
+        ##     while mit2 != deref(mit).second.end():
+        ##         print "    ", deref(mit2).first, deref(mit2).second.size()
+        ##         inc(mit2)
+        ##     inc(mit)
+        ## print peakgroup_score_hash[tree_start].size()
+        # We have selected H0 here, thus append the h0 score
+        ## current_score += c_log( getH0Score(mpep, tree_start, mypghash) )
+        current_score += c_log(peakgroup_score_hash[tree_start][pg][1])
+
+    for e in tree_path:
+        ####
+        #### Compute p(e[1]|e[0])
+        ####
+        prev_run = e[0]
+        curr_run = e[1]
+        pg = selection_vector_new[ curr_run ]
+
+        # get the retention time position in the previous run
+        #rt_prev = rt_positions.get( prev_run, None)
+        rt_prev_ = rt_positions_.find(prev_run)
+
+        if pg != 0:
+            ## pg_score, rt_curr = getScoreAndRT(mpep, curr_run, pg, mypghash)
+            pg_score = peakgroup_score_hash[string(curr_run)][pg][0]
+            rt_curr =  peakgroup_score_hash[string(curr_run)][pg][2]
+            current_score += c_log(pg_score)
+
+            #
+            # p( e[1] ) -> we need to compute p( e[1] | e[0] ) 
+            #
+            #  -> get the probability that we have a peak in the current run
+            #  e[1] eluting at position rt_curr given that there is a peak in
+            #  run e[0] eluting at position rt_prev
+            #
+
+
+            #if rt_prev is not None:
+            if rt_prev_ != rt_positions_.end():
+
+                source = prev_run
+                target = curr_run
+                # Try to get fast version of trafo first, then try slow one
+                try:
+                    mytrafo = tr_data.getTrafo(source, target)
+                    expected_rt = mytrafo.internal_interpolation.predictSingleValue(deref(rt_prev_).second)
+                    # expected_rt = mytrafo.internal_interpolation.predictSingleValue(rt_prev)
+                except AttributeError:
+                    expected_rt = tr_data.getTrafo(source, target).predict(
+                        [ float(deref(rt_prev_).second) ] )[0]
+
+                # 
+                # Tr to compute p(curr_run | prev_run )
+                # 
+                #  - compute normalized RT diff (mean, std normalized)
+                #  - use fast_score_update to compute probability, then add log(p) to the score
+                ###  # The code is equivalent to
+                ###  cdf_v = optimized.norm_cdf(norm_rt_diff)
+                ###  if (cdf_v > 0.5):
+                ###      cdf_v = 1-cdf_v
+                ###  
+                ###  if cdf_v > 0.0:
+                ###      return (current_score + c_log(cdf_v))
+                ###      current_score += math.log(cdf_v)
+                ###  else:
+                ###      current_score += -99999999999999999999999
+                norm_rt_diff = (expected_rt-rt_curr) / transfer_width
+                current_score = c_fast_score_update(norm_rt_diff, current_score)
+
+            else:
+                # no previous run, this means all previous runs were
+                # empty and we cannot add any RT so far
+                pass
+
+            # store our current position 
+            #rt_positions[curr_run] = rt_curr
+            rt_positions_[ string(curr_run) ] = rt_curr
+
+        else:
+
+            # We have selected H0 here, thus append the h0 score
+            ## current_score += c_log( getH0Score(mpep, curr_run, mypghash) )
+            current_score += c_log(peakgroup_score_hash[string(curr_run)][pg][1])
+
+            # store our current position 
+            if rt_prev_ != rt_positions_.end():
+            #if rt_prev is not None:
+
+                source = prev_run
+                target = curr_run
+
+                # Try to get fast version of trafo first, then try slow one
+                try:
+                    mytrafo = tr_data.getTrafo(source, target)
+                    expected_rt = mytrafo.internal_interpolation.predictSingleValue(deref(rt_prev_).second)
+                except AttributeError:
+                    expected_rt = tr_data.getTrafo(source, target).predict(
+                        [ float(deref(rt_prev_).second) ] )[0]
+
+
+                # We did not currently select a peakgroup, so this
+                # would basically mean that our assumption 
+                #
+                # p(curr_run| 1,2,..., prev_run, ... n) = p(curr_run|prev_run) 
+                #
+                # is not really valid any more, we would have to
+                # backtrack and figure out what the conditional
+                # independence assumpations were for prev_run and thus we would have
+                # 
+                # p(curr_run| 1,2,..., prev_run, prev_prev_run, ... n) = p(curr_run|prev_run, prev_prev_run) 
+                #
+                # where prev_prev_run was the run that was successor to prev_run.
+                # Currently we dont do this, we simply make a shortcut here
+                # We store the expected RT as the current one -> it is not
+                # the best idea but it still may do the job
+                #rt_positions[curr_run] = expected_rt
+                rt_positions_[ string(curr_run) ] = expected_rt
+
+    return current_score
+
+@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep, tr_data, double transfer_width = 30, bool verbose=False, dict mypghash=None):
 
     cdef int pg
@@ -376,7 +535,49 @@ def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_r
         #   h[run][pg][0] = score
         #   h[run][pg][1] = h0 score
         #   h[run][pg][2] = rt
-        if True:
+        if False:
+            for k,v in pg_per_run.iteritems():
+                curr_run = k
+                # Default value for null hypothesis (no peakgroup is true) is 100%
+                # and the correct value if there are no peakgroups at all. If we
+                # have some, we update below
+                h0_score = 1.0
+                tmp_run_hash.clear()
+                for pg_ in range(v):
+                    # We count our peakgroups starting with 1
+                    # 0 means null hypothesis
+                    pg = pg_ + 1 
+                    mypg = getPG(mpep, curr_run, pg)
+                    tmp_score = float(mypg.get_value("h_score"))
+                    h0_score = float(mypg.get_value("h0_score"))
+                    rt = float(mypg.get_value("RT"))
+
+                    tmp_vec.clear()
+                    tmp_vec.push_back(tmp_score)
+                    tmp_vec.push_back(h0_score)
+                    tmp_vec.push_back(rt)
+
+                    tmp_run_hash[pg] = tmp_vec
+
+                    ## pg_hash = run_hash.get(pg, [])
+                    ## pg_hash.append(score)
+                    ## pg_hash.append(h0_score)
+                    ## pg_hash.append(rt)
+                    ## run_hash[pg] = pg_hash
+
+                tmp_vec.clear()
+                tmp_vec.push_back(-1)
+                tmp_vec.push_back(h0_score)
+                tmp_vec.push_back(-1)
+
+                # Set null hypothesis probability
+                tmp_run_hash[0] = tmp_vec
+
+                peakgroup_score_hash[<string>curr_run] = tmp_run_hash
+
+                ## print "push back at position", curr_run, "a hash of size", tmp_run_hash.size()
+
+        else:
             for k,v in pg_per_run.iteritems():
                 curr_run = k
                 run_hash = mypghash.get(curr_run, {})
@@ -412,6 +613,7 @@ def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_r
         # prev_score = evalvec(          tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
         best_config = selection_vector
         prev_score = c_evalvec(tree_path, selection_vector, tree_start, mpep, tr_data, transfer_width, False, mypghash)
+        #### prev_score = pure_c_evalvec(tree_path, selection_vector, string(tree_start), mpep, tr_data, transfer_width, peakgroup_score_hash)
         best_score = prev_score
 
         # ca 17.02 for the initial score = takes ca 1 second
@@ -459,6 +661,7 @@ def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_r
             # score = evalvec(          tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
             # 17 seconds until here -> all below takes 9 seconds!!!
             score = c_evalvec(tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer_width, False, mypghash)
+            ## score = pure_c_evalvec(tree_path, selection_vector_new, string(tree_start), mpep, tr_data, transfer_width, peakgroup_score_hash)
             # 21 seconds until here -> all below takes 5 seconds!!!
             ### print "got c eval", score
 
