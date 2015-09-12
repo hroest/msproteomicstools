@@ -459,11 +459,6 @@ def getH0Score(mpep, run_id, mypghash=None):
  
 def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width = 30, verbose=False, mypghash=None):
 
-    # transfer_width = 100
-    # transfer_width = 30
-    
-    # It all only takes 15.7 seconds total up to here (1 second in tight loop)
-
     if verbose:
         r = 1.0
         for a in pg_per_run:
@@ -482,24 +477,17 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
     # Do everything for the first peakgroup !
     current_score = 0.0
     if pg != 0:
-        current_score, rt = getScoreAndRT(mpep, tree_start, pg, mypghash)
+        pg_score, rt = getScoreAndRT(mpep, tree_start, pg, mypghash)
         rt_positions[ tree_start ] = rt
-        current_score += math.log(current_score)
+        current_score += math.log(pg_score)
     else:
         # We have selected H0 here, thus append the h0 score
         current_score += math.log( getH0Score(mpep, tree_start, mypghash) )
 
-    if verbose:
-        print mypg, "my pg with p = %s" % (float(mypg.get_value("h_score"))), " start with scoree !! ", current_score
-        print " start with scoree !! ", current_score
-
-
-    # It all only takes 15.8 seconds total up to here 1.8 second in tight loop)
     for e in tree_path:
-        if verbose:
-            print "------------------------------"
-            print "  heeeeere, compute p(%s|%s)" % (e[1], e[0])
-
+        ####
+        #### Compute p(e[1]|e[0])
+        ####
         prev_run = e[0]
         curr_run = e[1]
         pg = selection_vector_new[ curr_run ]
@@ -508,26 +496,18 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
         rt_prev = rt_positions.get( prev_run, None)
 
         if pg != 0:
-            # It all only takes 17.5 seconds total up to here -> this branch takes 12.5 seconds
-
+            pg_score, rt_curr = getScoreAndRT(mpep, curr_run, pg, mypghash)
+            current_score += math.log(pg_score)
 
             #
             # p( e[1] ) -> we need to compute p( e[1] | e[0] ) 
             #
+            #  -> get the probability that we have a peak in the current run
+            #  e[1] eluting at position rt_curr given that there is a peak in
+            #  run e[0] eluting at position rt_prev
+            #
 
-            if mypghash is None:
-                mypg = getPG(mpep,  curr_run, pg )
-                current_score += math.log(float(mypg.get_value("h_score")))
-                rt_curr = float(mypg.get_value("RT"))
-            else:
-                current_score = mypghash[curr_run][pg][0]
-                score_h0 = mypghash[curr_run][pg][2]
-                rt_curr = mypghash[curr_run][pg][2]
-                #   h[run][pg][0] = score
-                #   h[run][pg][1] = h0 score
-                #   h[run][pg][2] = rt
 
-            # It all only takes 22.2 seconds total up to here -> this branch takes still 7 seconds
             if rt_prev is not None:
 
                 source = prev_run
@@ -562,7 +542,6 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
                 # no previous run, this means all previous runs were
                 # empty and we cannot add any RT so far
                 pass
-
 
             # store our current position 
             rt_positions[curr_run] = rt_curr
@@ -604,11 +583,6 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
                 # the best idea but it still may do the job
                 rt_positions[curr_run] = expected_rt
 
-    # print "total score", current_score
-    # All in all, it takes 29.9 seconds (of which ca 16 seconds are in the core ...)
-    #  -> down to 22.4 seconds (of which ca 8.4 seconds are in the core ...)
-    #  -> down to 17.0 seconds (of which ca 3.0 seconds are in the core ...)
-    #  -> down to 16.5 seconds (of which ca 3.0 seconds are in the core ...)
     return current_score
 
 def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
