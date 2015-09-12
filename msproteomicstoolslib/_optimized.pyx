@@ -7,8 +7,10 @@ cimport numpy as np
 import numpy as np
 from libcpp.vector cimport vector
 from libcpp.map cimport map
+from libcpp cimport bool
 from libcpp.string cimport string
 import random
+from libc.stdlib cimport srand, rand, RAND_MAX
 
 
 cdef extern from "algorithm":
@@ -18,10 +20,11 @@ cdef extern from "iterator":
 
 cdef extern from "math.h":
     double c_erfc "erfc" (double x)
-cdef extern from "math.h":
+    double c_fabs "fabs" (double x)
     double c_log "log" (double x)
-cdef extern from "math.h":
     double c_exp "exp" (double x)
+cdef extern from "time.h":
+    double c_time "time" (void*)
 
 
 # http://stackoverflow.com/questions/28973153/cython-how-to-wrap-a-c-function-that-returns-a-c-object
@@ -127,8 +130,7 @@ def norm_cdf(double x):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def fast_score_update(double x, double current_score):
-    cdef double cdf_v
-    cdf_v = norm_cdf(x)
+    cdef double cdf_v = norm_cdf(x)
 
     if (cdf_v > 0.5):
         cdf_v = 1-cdf_v
@@ -141,23 +143,45 @@ def fast_score_update(double x, double current_score):
     else:
         return (current_score - 999999999.0)
 
+cdef c_norm_cdf(double x):
+    # 1 / math.sqrt(2)
+    return 0.5 * c_erfc(x * 0.7071067811865475) 
+
+cdef c_fast_score_update(double x, double current_score):
+    cdef double cdf_v = norm_cdf(x)
+
+    if (cdf_v > 0.5):
+        cdf_v = 1-cdf_v
+
+    # Catch cases where we basically have zero probability
+    #  -> simply add a very large negative number to the score to
+    #     make it unlikely to ever pick such a combination
+    if cdf_v > 0.0:
+        return (current_score + c_log(cdf_v))
+    else:
+        return (current_score - 999999999.0)
 
 def getScoreAndRT(mpep, run_id, pg, mypghash=None):
-        current_score = mypghash[run_id][pg][0]
-        score_h0 = mypghash[run_id][pg][2]
-        rt = mypghash[run_id][pg][2]
-        return (current_score, rt)
+    current_score = mypghash[run_id][pg][0]
+    score_h0 = mypghash[run_id][pg][1]
+    rt = mypghash[run_id][pg][2]
+    return (current_score, rt)
 
 def getH0Score(mpep, run_id, mypghash=None):
-        return mypghash[run_id][0]
+    return mypghash[run_id][0]
 
-def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width = 30, verbose=False, mypghash=None):
+@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep, tr_data, double transfer_width = 30, bool verbose=False, dict mypghash=None):
 
     cdef int pg
     cdef double current_score
-    cdef double rt_curr, pg_score, rt
+    cdef double rt_curr, pg_score, rt, norm_rt_diff, expected_rt
 
     # 25 seconds up to here ...
+    ## cdef map[char *, double] selection_vector_new_
+
 
     # starting point
     pg = selection_vector_new[ tree_start ]
@@ -165,11 +189,15 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
     # keep track of all positions of peakgroups from previous runs
     rt_positions = {}
 
+    ## cdef map[char *, double] rt_positions_
+    ## cdef map[char *, double].iterator rt_prev_
+
     # Do everything for the first peakgroup !
     current_score = 0.0
     if pg != 0:
         pg_score, rt = getScoreAndRT(mpep, tree_start, pg, mypghash)
         rt_positions[ tree_start ] = rt
+        # rt_positions_[ <char *>tree_start ] = rt
         current_score += c_log(pg_score)
     else:
         # We have selected H0 here, thus append the h0 score
@@ -185,6 +213,7 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
 
         # get the retention time position in the previous run
         rt_prev = rt_positions.get( prev_run, None)
+        #rt_prev_ = rt_positions_.find(prev_run)
 
         if pg != 0:
             pg_score, rt_curr = getScoreAndRT(mpep, curr_run, pg, mypghash)
@@ -199,6 +228,7 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
             #
 
 
+            # if rt_prev_ != rt_positions_.end():
             if rt_prev is not None:
 
                 source = prev_run
@@ -206,6 +236,7 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
                 # Try to get fast version of trafo first, then try slow one
                 try:
                     mytrafo = tr_data.getTrafo(source, target)
+                    # expected_rt = mytrafo.internal_interpolation.predictSingleValue(deref(rt_prev_).second)
                     expected_rt = mytrafo.internal_interpolation.predictSingleValue(rt_prev)
                 except AttributeError:
                     expected_rt = tr_data.getTrafo(source, target).predict(
@@ -227,7 +258,7 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
                 ###  else:
                 ###      current_score += -99999999999999999999999
                 norm_rt_diff = (expected_rt-rt_curr) / transfer_width
-                current_score = fast_score_update(norm_rt_diff, current_score)
+                current_score = c_fast_score_update(norm_rt_diff, current_score)
 
             else:
                 # no previous run, this means all previous runs were
@@ -236,6 +267,7 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
 
             # store our current position 
             rt_positions[curr_run] = rt_curr
+            # rt_positions_[ <char *>curr_run ] = rt_curr
 
         else:
 
@@ -243,6 +275,7 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
             current_score += c_log( getH0Score(mpep, curr_run, mypghash) )
 
             # store our current position 
+            #if rt_prev_ != rt_positions_.end():
             if rt_prev is not None:
 
                 source = prev_run
@@ -273,9 +306,7 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
                 # We store the expected RT as the current one -> it is not
                 # the best idea but it still may do the job
                 rt_positions[curr_run] = expected_rt
-
-
-    # 38 seconds up to here ...
+                #rt_positions_[ <char *>curr_run ] = expected_rt
 
     return current_score
 
@@ -298,58 +329,90 @@ def getPG(mpep, run, pg):
     return prgr.getAllPrecursors()[0].getAllPeakgroups()[pg-1]
     # return ( list(list(mpep.getAllPeptides())[ run ].getAllPeakgroups())[pg - 1] )
 
-def c_mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
-            tr_data, n_runs, transfer_width, f=1.0, verbose=False, biasSelection=False):
+# good random nr
+# http://stackoverflow.com/questions/6862844/how-bad-rand-from-stdlib-h-is
+# http://eternallyconfuzzled.com/arts/jsw_art_rand.aspx# good random nr
+cdef getRandomInt(int a, int b):
+    # return random.randint(a, b)
+    return rand()%(b-a)+a;  # do not use this
+    # return a + rand() / (RAND_MAX / (b - a) + 1)
+
+cdef getRandomFloat():
+    #return random.random()
+    return rand()/(RAND_MAX);
+
+def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_run, mpep,
+            tr_data, int n_runs_, transfer_width, double f_=1.0, verbose=False, bool biasSelection_=False):
         """
         MC MC in cython
         http://hplgit.github.io/teamods/MC_cython/main_MC_cython.html
+
+        26 s is the new low
         """
+        srand(<unsigned int>c_time(NULL));
+
+        cdef int nrit = nrit_
+        cdef int n_runs = n_runs_
+        cdef double f = f_
+        cdef bool biasSelection = biasSelection_
+
+        cdef double delta_score, score, best_score, prev_score
+        cdef int BIAS_PEAKGROUPS=1
+        cdef bytes select_run
+        cdef int select_pg
+        cdef int i
+        cdef int pg_, pg
+        cdef bool accept
+        cdef double tmp_score, h0_score, rt
+
+        cdef map[string, map[int, vector[double] ] ] peakgroup_score_hash
+        cdef map[int, vector[double] ] tmp_run_hash
+        cdef vector[double] tmp_vec
+        cdef string c_tree_start = tree_start
+
+        mypghash = {}
 
         # Create hash which can be accessed as:
         #   h[run][pg][0] = score
         #   h[run][pg][1] = h0 score
         #   h[run][pg][2] = rt
-        mypghash = {}
-        for k,v in pg_per_run.iteritems():
-            curr_run = k
-            run_hash = mypghash.get(curr_run, {})
+        if True:
+            for k,v in pg_per_run.iteritems():
+                curr_run = k
+                run_hash = mypghash.get(curr_run, {})
 
-            # Default value for null hypothesis (no peakgroup is true) is 100%
-            # and the correct value if there are no peakgroups at all. If we
-            # have some, we update below
-            h0_score = 1.0
-            for pg_ in range(v):
-                # We count our peakgroups starting with 1
-                # 0 means null hypothesis
-                pg = pg_ + 1 
-                mypg = getPG(mpep, curr_run, pg )
-                score = float(mypg.get_value("h_score"))
-                h0_score = float(mypg.get_value("h0_score"))
-                rt = float(mypg.get_value("RT"))
+                # Default value for null hypothesis (no peakgroup is true) is 100%
+                # and the correct value if there are no peakgroups at all. If we
+                # have some, we update below
+                h0_score = 1.0
+                for pg_ in range(v):
+                    # We count our peakgroups starting with 1
+                    # 0 means null hypothesis
+                    pg = pg_ + 1 
+                    mypg = getPG(mpep, curr_run, pg )
+                    score = float(mypg.get_value("h_score"))
+                    h0_score = float(mypg.get_value("h0_score"))
+                    rt = float(mypg.get_value("RT"))
 
-                pg_hash = run_hash.get(pg, [])
-                pg_hash.append(score)
-                pg_hash.append(h0_score)
-                pg_hash.append(rt)
-                run_hash[pg] = pg_hash
+                    pg_hash = run_hash.get(pg, [])
+                    pg_hash.append(score)
+                    pg_hash.append(h0_score)
+                    pg_hash.append(rt)
+                    run_hash[pg] = pg_hash
 
-            # Set null hypothesis probability
-            run_hash[0] = h0_score
+                # Set null hypothesis probability
+                run_hash[0] = h0_score
 
-            mypghash[curr_run] = run_hash
+                mypghash[curr_run] = run_hash
 
-
-
-        # ca 16.2 for the hash
-
-        burn_in_time = 0
-        time_in_best_config = 0
+        # ca 16.5s for the hash
+        cdef int burn_in_time = 0
+        cdef int time_in_best_config = 0
 
         # prev_score = evalvec(          tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
-        prev_score = c_evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width, False, mypghash)
-        best_score = prev_score
         best_config = selection_vector
-        BIAS_PEAKGROUPS=1
+        prev_score = c_evalvec(tree_path, selection_vector, tree_start, mpep, tr_data, transfer_width, False, mypghash)
+        best_score = prev_score
 
         # ca 17.02 for the initial score = takes ca 1 second
 
@@ -363,16 +426,21 @@ def c_mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
             # kprint "selection vector", selection_vector
 
             # Permute vector
-            select_run = pg_per_run.keys()[ random.randint(0, n_runs-1 ) ]
+            ### select_run = pg_per_run.keys()[ getRandomInt(0, n_runs-1)  ]
+            select_run = pg_per_run.keys()[ rand() % (n_runs-1)  ]
             # print "seelect run", select_run
-            select_pg = random.randint(0, pg_per_run[select_run])
+            if pg_per_run[select_run] == 0:
+                select_pg = 0
+            else:
+                ### select_pg = getRandomInt(0, pg_per_run[select_run])
+                select_pg = rand() % pg_per_run[select_run]
             # print "seelect pg", select_pg
             if biasSelection:
                 # if we bias our selection, in half of the cases we only
                 # propose steps that are either zero or first peakgroups. Make sure that for 
-                if random.random() > 0.5:
+                if getRandomFloat() > 0.5:
                     opg = select_pg
-                    select_pg = random.randint(0, min(BIAS_PEAKGROUPS, pg_per_run[select_run]))
+                    select_pg = getRandomInt(0, min(BIAS_PEAKGROUPS, pg_per_run[select_run]))
                     print "bias selection, change pg from %s to %s" %(opg, select_pg)
 
             if selection_vector[select_run] == select_pg:
@@ -389,28 +457,19 @@ def c_mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
             #
 
             # score = evalvec(          tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
-            score = c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width, False, mypghash)
-
-            if False:
-                score = evalvec(              tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width, False, mypghash=mypghash)
-                c_score = c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width, False, mypghash)
-                oldscore = evalvec_old_python(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width)
-                print oldscore, score, c_score
-                if oldscore > -1e20:
-                    print "assert"
-                    assert ( abs(oldscore - score) < 1e-5)
-                    assert ( abs(oldscore - c_score) < 1e-5)
+            # 17 seconds until here -> all below takes 9 seconds!!!
+            score = c_evalvec(tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer_width, False, mypghash)
+            # 21 seconds until here -> all below takes 5 seconds!!!
+            ### print "got c eval", score
 
             delta_score = score - prev_score
             if verbose:
                 print prev_score, "proposed: ", selection_vector_new.values(), score, " -> delta",  delta_score
 
-            # take 32 seconds here
 
-            r = random.random()
+            r = getRandomFloat()
             accept = delta_score > 0 or r < c_exp(delta_score/f)
-
-            continue
+            # 21 seconds until here -> all below takes 5 seconds!!!
 
             if score >= best_score:
                 if score > best_score:
@@ -418,7 +477,7 @@ def c_mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
                     burn_in_time = i
                     time_in_best_config = 0
                     # print 'set time best config to zero', score, best_score
-                elif math.fabs(score - best_score) < 1e-6:
+                elif c_fabs(score - best_score) < 1e-6:
                     # we return to the best score
                     time_in_best_config += 1
                     # print 'return to best score ', score, best_score
@@ -433,6 +492,7 @@ def c_mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
                 if not accept:
                     time_in_best_config += 1
     
+            # 22 seconds until here -> all below takes 4 seconds!!!
             # If we accept the new score, change the selection vector and the score
             if accept:
                 if verbose:
@@ -448,4 +508,5 @@ def c_mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
             print "    Burnin time: ", burn_in_time
             print "    Time in best config: ", time_in_best_config
 
+        # 22.5 seconds
         return best_score, best_config
