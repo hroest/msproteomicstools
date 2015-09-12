@@ -45,6 +45,7 @@ from msproteomicstoolslib.algorithms.alignment.Multipeptide import Multipeptide
 from msproteomicstoolslib.algorithms.alignment.SplineAligner import SplineAligner
 from msproteomicstoolslib.format.TransformationCollection import TransformationCollection, LightTransformationData
 from msproteomicstoolslib.algorithms.alignment.AlignmentHelper import addDataToTrafo
+import msproteomicstoolslib.optimized as optimized
 
 def doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, peak_sd):
     """
@@ -429,10 +430,39 @@ def getPG(mpep, run, pg):
     return prgr.getAllPrecursors()[0].getAllPeakgroups()[pg-1]
     # return ( list(list(mpep.getAllPeptides())[ run ].getAllPeakgroups())[pg - 1] )
     
-def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width = 30, verbose=False):
+
+def getScoreAndRT(mpep, run_id, pg, mypghash=None):
+    if mypghash is None:
+        mypg = getPG(mpep, run_id, pg)
+        rt = float(mypg.get_value("RT"))
+        current_score = float(mypg.get_value("h_score"))
+    else:
+        current_score = mypghash[run_id][pg][0]
+        score_h0 = mypghash[run_id][pg][2]
+        rt = mypghash[run_id][pg][2]
+
+    return (current_score, rt)
+
+def getH0Score(mpep, run_id, mypghash=None):
+    if mypghash is None:
+        # We have selected H0 here, thus append the h0 score
+        mypg = getPG(mpep, run_id, 0)
+
+        # Only return h0 score if we have a pg in this run (otherwise p=1 and we add zero in log-space)
+        if mypg is not None:
+            return float(mypg.get_value("h0_score"))
+        else:
+            return 1.0
+    else:
+        return mypghash[run_id][0]
+
+ 
+def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width = 30, verbose=False, mypghash=None):
 
     # transfer_width = 100
     # transfer_width = 30
+    
+    # It all only takes 15.7 seconds total up to here (1 second in tight loop)
 
     if verbose:
         r = 1.0
@@ -445,98 +475,89 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
     # starting point
     tree_start
     pg = selection_vector_new[ tree_start ]
-    if verbose:
-        print "Get starting point with run", tree_start, " with pg", pg
-        # print pg_per_run
 
     # keep track of all positions of peakgroups from previous runs
     rt_positions = {}
 
+    # Do everything for the first peakgroup !
     current_score = 0.0
     if pg != 0:
-        ## mypg = list(list(mpep.getAllPeptides())[ tree_start ].getAllPeakgroups())[pg - 1]
-        mypg = getPG(mpep,  tree_start, pg)
-        ### rt = mypg.get_normalized_retentiontime()
-        rt = float(mypg.get_value("RT"))
-        ## print "store RT", rt
-        ## print "store RT", float(mypg.get_value("RT"))
+        current_score, rt = getScoreAndRT(mpep, tree_start, pg, mypghash)
         rt_positions[ tree_start ] = rt
-        current_score += math.log(float(mypg.get_value("h_score")))
+        current_score += math.log(current_score)
     else:
-        # mypg = list(list(mpep.getAllPeptides())[ tree_start ].getAllPeakgroups())[0]
-        ## if not pg_per_run[tree_start] == 0:
-        mypg = getPG(mpep,  tree_start, 0)
-        if mypg is not None:
-            # Only append if we have a pg in this run (otherwise p=1 and we add zero in log-space)
-            current_score += math.log(float(mypg.get_value("h0_score")))
+        # We have selected H0 here, thus append the h0 score
+        current_score += math.log( getH0Score(mpep, tree_start, mypghash) )
+
     if verbose:
         print mypg, "my pg with p = %s" % (float(mypg.get_value("h_score"))), " start with scoree !! ", current_score
         print " start with scoree !! ", current_score
 
+
+    # It all only takes 15.8 seconds total up to here 1.8 second in tight loop)
     for e in tree_path:
-        ## print "in tree path", e
-        ## print "sel vector len %s vector" % (len(selection_vector_new)), selection_vector_new
         if verbose:
             print "------------------------------"
             print "  heeeeere, compute p(%s|%s)" % (e[1], e[0])
+
         prev_run = e[0]
         curr_run = e[1]
         pg = selection_vector_new[ curr_run ]
+
+        # get the retention time position in the previous run
+        rt_prev = rt_positions.get( prev_run, None)
+
         if pg != 0:
-            mypg = getPG(mpep,  curr_run, pg )
-            # p( e[1] ) -> we need p( e[1] | e[0] ) 
+            # It all only takes 17.5 seconds total up to here -> this branch takes 12.5 seconds
 
-            current_score += math.log(float(mypg.get_value("h_score")))
-            if verbose:
-                print " = ", mypg , "my pg with p = %s" % (float(mypg.get_value("h_score")))
-                print "new score:", current_score
-            # get the position in the previous run
-            rt_prev = rt_positions.get( prev_run, None)
 
-            rt_curr = float(mypg.get_value("RT"))
+            #
+            # p( e[1] ) -> we need to compute p( e[1] | e[0] ) 
+            #
+
+            if mypghash is None:
+                mypg = getPG(mpep,  curr_run, pg )
+                current_score += math.log(float(mypg.get_value("h_score")))
+                rt_curr = float(mypg.get_value("RT"))
+            else:
+                current_score = mypghash[curr_run][pg][0]
+                score_h0 = mypghash[curr_run][pg][2]
+                rt_curr = mypghash[curr_run][pg][2]
+                #   h[run][pg][0] = score
+                #   h[run][pg][1] = h0 score
+                #   h[run][pg][2] = rt
+
+            # It all only takes 22.2 seconds total up to here -> this branch takes still 7 seconds
             if rt_prev is not None:
 
-                ## source = list( mpep.getAllPeptides() )[prev_run].run.get_id()
-                ## target = list( mpep.getAllPeptides() )[curr_run].run.get_id()
                 source = prev_run
                 target = curr_run
+                # Try to get fast version of trafo first, then try slow one
+                try:
+                    mytrafo = tr_data.getTrafo(source, target)
+                    expected_rt = mytrafo.internal_interpolation.predictSingleValue(rt_prev)
+                except AttributeError:
+                    expected_rt = tr_data.getTrafo(source, target).predict(
+                        [ float(rt_prev) ] )[0]
 
-                expected_rt = tr_data.getTrafo(source, target).predict(
-                    [ float(rt_prev) ] )[0]
-
-                if verbose:
-                    print "try to get ", source, target
-                    print "source RT ", rt_prev
-                    print "expected RT ", expected_rt
-                    print "current_ RT ", rt_curr
-
+                # 
                 # Tr to compute p(curr_run | prev_run )
-                p_Bqr_Bjm = scipy.stats.norm.cdf(rt_curr,
-                                                 loc = expected_rt ,
-                                                 scale = transfer_width)
-                # TODO use logcfd
-                # print "current cdf", p_Bqr_Bjm
-                ## print "cdf param cdf", p_Bqr_Bjm
-                cdf_v = p_Bqr_Bjm
-                if (cdf_v > 0.5):
-                    cdf_v = 1-cdf_v
+                # 
+                #  - compute normalized RT diff (mean, std normalized)
+                #  - use fast_score_update to compute probability, then add log(p) to the score
+                ###  # The code is equivalent to
+                ###  cdf_v = optimized.norm_cdf(norm_rt_diff)
+                ###  if (cdf_v > 0.5):
+                ###      cdf_v = 1-cdf_v
+                ###  
+                ###  if cdf_v > 0.0:
+                ###      return (current_score + c_log(cdf_v))
+                ###      current_score += math.log(cdf_v)
+                ###  else:
+                ###      current_score += -99999999999999999999999
+                norm_rt_diff = (expected_rt-rt_curr) / transfer_width
+                current_score = optimized.fast_score_update(norm_rt_diff, current_score)
 
-
-                # Catch cases where we basically have zero probability
-                #  -> simply add a very large negative number to the score to
-                #     make it unlikely to ever pick such a combination
-                if cdf_v > 0.0:
-                    current_score += math.log(cdf_v)
-                else:
-                    current_score += -99999999999999999999999
-
-                # print current_score
-
-                if verbose:
-                    print " = "
-                    print "add to score cdf"
-                    print "current cdf", cdf_v
-                    print "new score:", current_score
             else:
                 # no previous run, this means all previous runs were
                 # empty and we cannot add any RT so far
@@ -547,30 +568,24 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
             rt_positions[curr_run] = rt_curr
 
         else:
+
             # We have selected H0 here, thus append the h0 score
-            ## mypg = list(list(mpep.getAllPeptides())[ curr_run ].getAllPeakgroups())[0]
-            mypg = getPG(mpep, curr_run, 0)
-
-            if mypg is not None:
-                # Only append if we have a pg in this run (otherwise p=1 and we add zero in log-space)
-                current_score += math.log(float(mypg.get_value("h0_score")))
-            rt_prev = rt_positions.get( prev_run, None)
-
-            if verbose:
-                print "------------------------------"
-                print "select h0 for run ", curr_run
-                print "new score:", current_score
+            current_score += math.log( getH0Score(mpep, curr_run, mypghash) )
 
             # store our current position 
             if rt_prev is not None:
 
-                ## source = list( mpep.getAllPeptides() )[prev_run].run.get_id()
-                ## target = list( mpep.getAllPeptides() )[curr_run].run.get_id()
                 source = prev_run
                 target = curr_run
 
-                expected_rt = tr_data.getTrafo(source, target).predict(
-                    [ float(rt_prev) ] )[0]
+                # Try to get fast version of trafo first, then try slow one
+                try:
+                    mytrafo = tr_data.getTrafo(source, target)
+                    expected_rt = mytrafo.internal_interpolation.predictSingleValue(rt_prev)
+                except AttributeError:
+                    expected_rt = tr_data.getTrafo(source, target).predict(
+                        [ float(rt_prev) ] )[0]
+
 
                 # We did not currently select a peakgroup, so this
                 # would basically mean that our assumption 
@@ -590,6 +605,10 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
                 rt_positions[curr_run] = expected_rt
 
     # print "total score", current_score
+    # All in all, it takes 29.9 seconds (of which ca 16 seconds are in the core ...)
+    #  -> down to 22.4 seconds (of which ca 8.4 seconds are in the core ...)
+    #  -> down to 17.0 seconds (of which ca 3.0 seconds are in the core ...)
+    #  -> down to 16.5 seconds (of which ca 3.0 seconds are in the core ...)
     return current_score
 
 def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
@@ -644,11 +663,45 @@ def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
 
         """
 
+        # Create hash which can be accessed as:
+        #   h[run][pg][0] = score
+        #   h[run][pg][1] = h0 score
+        #   h[run][pg][2] = rt
+        mypghash = {}
+        for k,v in pg_per_run.iteritems():
+            curr_run = k
+            run_hash = mypghash.get(curr_run, {})
+
+            # Default value for null hypothesis (no peakgroup is true) is 100%
+            # and the correct value if there are no peakgroups at all. If we
+            # have some, we update below
+            h0_score = 1.0
+            for pg_ in range(v):
+                # We count our peakgroups starting with 1
+                # 0 means null hypothesis
+                pg = pg_ + 1 
+                mypg = getPG(mpep, curr_run, pg )
+                score = float(mypg.get_value("h_score"))
+                h0_score = float(mypg.get_value("h0_score"))
+                rt = float(mypg.get_value("RT"))
+
+                pg_hash = run_hash.get(pg, [])
+                pg_hash.append(score)
+                pg_hash.append(h0_score)
+                pg_hash.append(rt)
+                run_hash[pg] = pg_hash
+
+            # Set null hypothesis probability
+            run_hash[0] = h0_score
+
+            mypghash[curr_run] = run_hash
+
+
 
         burn_in_time = 0
         time_in_best_config = 0
 
-        prev_score = evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width)
+        prev_score = evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
         best_score = prev_score
         best_config = selection_vector
         BIAS_PEAKGROUPS=1
@@ -690,7 +743,7 @@ def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
             ## eval vector
             #
 
-            score = evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width)
+            score = evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
             delta_score = score - prev_score
             if verbose:
                 print prev_score, "proposed: ", selection_vector_new.values(), score, " -> delta",  delta_score
