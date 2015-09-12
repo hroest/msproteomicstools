@@ -12,8 +12,11 @@ cdef extern from "algorithm":
     vector[double].iterator c_upper_bound "std::upper_bound" (vector[double].iterator, vector[double].iterator, double x)
 cdef extern from "iterator":
     size_t c_distance "std::distance" (vector[double].iterator, vector[double].iterator)
+
 cdef extern from "math.h":
     double c_erfc "erfc" (double x)
+cdef extern from "math.h":
+    double c_log "log" (double x)
 
 
 # http://stackoverflow.com/questions/28973153/cython-how-to-wrap-a-c-function-that-returns-a-c-object
@@ -115,4 +118,23 @@ def erfc(double x):
 def norm_cdf(double x):
     # 1 / math.sqrt(2)
     return 0.5 * c_erfc(x * 0.7071067811865475) 
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def fast_score_update(double x, double current_score):
+    cdef double cdf_v
+    cdf_v = norm_cdf(x)
+
+    if (cdf_v > 0.5):
+        cdf_v = 1-cdf_v
+
+    # Catch cases where we basically have zero probability
+    #  -> simply add a very large negative number to the score to
+    #     make it unlikely to ever pick such a combination
+    if cdf_v > 0.0:
+        return (current_score + c_log(cdf_v))
+    else:
+        # current_score += -99999999999999999999999
+        return (current_score - 999999999.0)
+
 
