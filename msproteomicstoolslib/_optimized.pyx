@@ -279,3 +279,173 @@ def c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_
 
     return current_score
 
+def getPG(mpep, run, pg):
+
+    if not mpep.hasPrecursorGroup(run):
+        if pg == 0:
+            # Just a missing one, we only want to have p(H0) which in this
+            # case should be 1.0 as we do not have a peakgroup -> 100%
+            # chance of missing value
+            return None
+        else:
+            # Bug!
+            raise Exception("Bug, requested pg %s from a run that has no peakgroups" % pg)
+
+    prgr = mpep.getPrecursorGroup(run)
+
+    if len( prgr.getAllPrecursors() ) > 1:
+        raise Exception("Not implemented for precursor groups...")
+    return prgr.getAllPrecursors()[0].getAllPeakgroups()[pg-1]
+    # return ( list(list(mpep.getAllPeptides())[ run ].getAllPeakgroups())[pg - 1] )
+
+def c_mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
+            tr_data, n_runs, transfer_width, f=1.0, verbose=False, biasSelection=False):
+        """
+        MC MC in cython
+        http://hplgit.github.io/teamods/MC_cython/main_MC_cython.html
+        """
+
+        # Create hash which can be accessed as:
+        #   h[run][pg][0] = score
+        #   h[run][pg][1] = h0 score
+        #   h[run][pg][2] = rt
+        mypghash = {}
+        for k,v in pg_per_run.iteritems():
+            curr_run = k
+            run_hash = mypghash.get(curr_run, {})
+
+            # Default value for null hypothesis (no peakgroup is true) is 100%
+            # and the correct value if there are no peakgroups at all. If we
+            # have some, we update below
+            h0_score = 1.0
+            for pg_ in range(v):
+                # We count our peakgroups starting with 1
+                # 0 means null hypothesis
+                pg = pg_ + 1 
+                mypg = getPG(mpep, curr_run, pg )
+                score = float(mypg.get_value("h_score"))
+                h0_score = float(mypg.get_value("h0_score"))
+                rt = float(mypg.get_value("RT"))
+
+                pg_hash = run_hash.get(pg, [])
+                pg_hash.append(score)
+                pg_hash.append(h0_score)
+                pg_hash.append(rt)
+                run_hash[pg] = pg_hash
+
+            # Set null hypothesis probability
+            run_hash[0] = h0_score
+
+            mypghash[curr_run] = run_hash
+
+
+
+        # ca 16.2 for the hash
+
+        burn_in_time = 0
+        time_in_best_config = 0
+
+        # prev_score = evalvec(          tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
+        prev_score = c_evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width, False, mypghash)
+        best_score = prev_score
+        best_config = selection_vector
+        BIAS_PEAKGROUPS=1
+
+        # ca 17.02 for the initial score = takes ca 1 second
+
+        if verbose:
+            print "start: ", prev_score, selection_vector
+
+        for i in range(nrit):
+            # print "88888888888888888888888888888888888888888888888888888888888888888888888888"
+            # print "88888888888888888888888888888888888888888888888888888888888888888888888888"
+            # print "88888888888888888888888888888888888888888888888888888888888888888888888888"
+            # kprint "selection vector", selection_vector
+
+            # Permute vector
+            select_run = pg_per_run.keys()[ random.randint(0, n_runs-1 ) ]
+            # print "seelect run", select_run
+            select_pg = random.randint(0, pg_per_run[select_run])
+            # print "seelect pg", select_pg
+            if biasSelection:
+                # if we bias our selection, in half of the cases we only
+                # propose steps that are either zero or first peakgroups. Make sure that for 
+                if random.random() > 0.5:
+                    opg = select_pg
+                    select_pg = random.randint(0, min(BIAS_PEAKGROUPS, pg_per_run[select_run]))
+                    print "bias selection, change pg from %s to %s" %(opg, select_pg)
+
+            if selection_vector[select_run] == select_pg:
+                # its equal, no step 
+                continue
+
+            #update vector
+            ## selection_vector_new = selection_vector[:]
+            selection_vector_new = selection_vector.copy()
+            selection_vector_new[select_run] = select_pg
+
+            ##
+            ## eval vector
+            #
+
+            # score = evalvec(          tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
+            score = c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width, False, mypghash)
+
+            if False:
+                score = evalvec(              tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width, False, mypghash=mypghash)
+                c_score = c_evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width, False, mypghash)
+                oldscore = evalvec_old_python(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width)
+                print oldscore, score, c_score
+                if oldscore > -1e20:
+                    print "assert"
+                    assert ( abs(oldscore - score) < 1e-5)
+                    assert ( abs(oldscore - c_score) < 1e-5)
+
+            delta_score = score - prev_score
+            if verbose:
+                print prev_score, "proposed: ", selection_vector_new.values(), score, " -> delta",  delta_score
+
+            # take 32 seconds here
+
+            r = random.random()
+            accept = delta_score > 0 or r < c_exp(delta_score/f)
+
+            continue
+
+            if score >= best_score:
+                if score > best_score:
+                    # we have not seen this score before, it is better!
+                    burn_in_time = i
+                    time_in_best_config = 0
+                    # print 'set time best config to zero', score, best_score
+                elif math.fabs(score - best_score) < 1e-6:
+                    # we return to the best score
+                    time_in_best_config += 1
+                    # print 'return to best score ', score, best_score
+                else:
+                    # print 'WHAT here? ', score, best_score
+                    pass
+                best_score = score 
+                best_config = selection_vector_new
+            else:
+                # new score is worse, if we do not accept then it means we stay
+                # with the same score
+                if not accept:
+                    time_in_best_config += 1
+    
+            # If we accept the new score, change the selection vector and the score
+            if accept:
+                if verbose:
+                    print "accept", r, "exp^%s" %(delta_score/f)
+                selection_vector = selection_vector_new
+                prev_score = score
+
+
+        if verbose:
+            print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+            print "  MCMC Stats: "
+            print "    Nr it: ", nrit
+            print "    Burnin time: ", burn_in_time
+            print "    Time in best config: ", time_in_best_config
+
+        return best_score, best_config
