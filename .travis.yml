@@ -14,12 +14,15 @@ before_install:
  - git clone https://github.com/hroest/scikit-datasmooth.git
  - "cd scikit-datasmooth && python setup.py install && cd .."
 install:
-  # for Python 2.7 and 3.3 w/o system packages, install rpy2 manually
-  #  note rpy2 > 2.5.6 (certainly > 2.6.1) will NOT work with R 2.x any more!
-  #  we use 2.2.5 (same as Ubuntu precise 12.04)
+  # make sure we have the newest setuptools
   - pip install -U setuptools
+  # for Python 2.7 and 3.3 w/o system packages, install rpy2 manually
+  #  for Ubuntu 12.04, we have only R 2.x available and thus need an older rpy2
+  #  version (2.2.5) would work:
   # - pip install rpy2==2.2.5
-  - pip install rpy2
+  #  for Ubuntu 14.04, we have R 3.x available
+  # - pip install rpy2
+  - pip install rpy2==2.2.5
   - pip install numpy
   - travis_retry python setup.py develop
 script: 
