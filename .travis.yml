@@ -5,7 +5,8 @@ python:
   # - "3.2" # no rpy2 or biopython support for Python3
   - "3.3"
 before_install:
-# - sudo apt-get install -qq python-numpy python-scipy python-rpy2 python-lxml 
+  - sudo apt-get update
+  - sudo apt-get install -qq python-numpy python-scipy python-rpy2 python-lxml 
 # - sudo apt-get install -qq python-biopython python-xlwt python-scikits-learn 
 # - sudo apt-get install -qq python-cluster
 # - git clone https://github.com/pymzml/pymzML.git
