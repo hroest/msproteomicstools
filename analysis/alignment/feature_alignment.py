@@ -602,7 +602,7 @@ def doReferenceAlignment(options, this_exp, multipeptides):
     except ValueError:
         raise Exception("max_rt_diff needs to be a number, I got %s" % options.rt_diff_cutoff) 
 
-    if options.rt_diff_cutoff_units == "median_stdev"
+    if options.rt_diff_cutoff_units == "median_stdev":
         options.rt_diff_cutoff = options.rt_diff_cutoff * numpy.median(list(trafoError.getStdev()))
     elif options.rt_diff_cutoff_units == "max":
         options.rt_diff_cutoff = max(list(trafoError.getStdev()))
