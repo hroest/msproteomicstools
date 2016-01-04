@@ -111,6 +111,25 @@ class TestFeatureAlignment(unittest.TestCase):
         os.remove(tmpfilename_ids)
         os.remove(tmpfilename_matrix)
 
+    def test_2_extra_linear_featureAlignment_openswath(self):
+
+        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
+        filename = os.path.join(self.datadir, "feature_alignment_3_openswath_input.csv")
+        expected_outcome = os.path.join(self.datadir, "feature_alignment_3_openswath_output_cluster_ids.csv")
+
+        tmpfilename = "featureAlignment_2_linear.out.tmp"
+        tmpfilename_ids = "featureAlignment_2_linear.out.tmp_idsonly.csv"
+
+        stdev_param = 1.5557361475 # should yield 30 seconds
+        args = "--in %s --out %s --out_ids %s --realign_method 'linear' --method best_cluster_score --max_fdr_quality 0.4 --matrix_output_method RT --max_rt_diff_units median_stdev --max_rt_diff %s" % (filename, tmpfilename, tmpfilename_ids, stdev_param)
+        cmd = "python %s %s" % (script, args)
+        sub.check_output(cmd,shell=True)
+        
+        self.exact_diff(tmpfilename_ids, expected_outcome)
+
+        os.remove(tmpfilename)
+        os.remove(tmpfilename_ids)
+
     @attr('slow')
     @attr('rpy2')
     def test_3_featureAlignment_openswath_alignment(self):
