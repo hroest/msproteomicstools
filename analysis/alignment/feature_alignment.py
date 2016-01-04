@@ -600,18 +600,17 @@ def doReferenceAlignment(options, this_exp, multipeptides):
     try:
         options.rt_diff_cutoff = float(options.rt_diff_cutoff)
     except ValueError:
-        if options.rt_diff_cutoff == "auto_2medianstdev":
-            options.rt_diff_cutoff = 2*numpy.median(list(trafoError.getStdev()))
-        elif options.rt_diff_cutoff == "auto_3medianstdev":
-            options.rt_diff_cutoff = 3*numpy.median(list(trafoError.getStdev()))
-        elif options.rt_diff_cutoff == "auto_4medianstdev":
-            options.rt_diff_cutoff = 4*numpy.median(list(trafoError.getStdev()))
-        elif options.rt_diff_cutoff == "auto_maxstdev":
-            options.rt_diff_cutoff = max(list(trafoError.getStdev()))
-        else:
-            raise Exception("max_rt_diff either needs to be a value in seconds or" + \
-                            "one of ('auto_2medianstdev', 'auto_3medianstdev', " + \
-                            "'auto_4medianstdev', 'auto_maxstdev'). Found instead: '%s'" % options.rt_diff_cutoff)
+        raise Exception("max_rt_diff needs to be a number, I got %s" % options.rt_diff_cutoff) 
+
+    if options.rt_diff_cutoff_units == "median_stdev"
+        options.rt_diff_cutoff = options.rt_diff_cutoff * numpy.median(list(trafoError.getStdev()))
+    elif options.rt_diff_cutoff_units == "max":
+        options.rt_diff_cutoff = max(list(trafoError.getStdev()))
+    elif options.rt_diff_cutoff_units == "seconds": 
+        pass
+    else:
+        raise Exception("max_rt_diff_unit either needs to be 'seconds' or 'median_stdev' or 'max'. \
+                        Found instead: '%s'" % options.rt_diff_cutoff_units)
 
     print("Will calculate with aligned_fdr cutoff of", options.aligned_fdr_cutoff, "and an RT difference of", options.rt_diff_cutoff)
     start = time.time()
@@ -637,6 +636,7 @@ def handle_args():
     parser.add_argument("--fdr_cutoff", dest="fdr_cutoff", default=0.01, type=float, help="Seeding score cutoff", metavar='0.01')
     parser.add_argument("--max_fdr_quality", dest="aligned_fdr_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR) - it is possible to give a range in the format lower,higher+stepsize,stepsize - e.g. 0,0.31,0.01 (-1 will set it to fdr_cutoff)", metavar='-1')
     parser.add_argument("--max_rt_diff", dest="rt_diff_cutoff", default=30, help="Maximal difference in RT for two aligned features", metavar='30')
+    parser.add_argument("--max_rt_diff_units", dest="rt_diff_cutoff_units", default="seconds", help="Units for RT diff (seconds, median_stdev)", metavar='seconds')
     parser.add_argument("--iso_max_rt_diff", dest="rt_diff_isotope", default=10, help="Maximal difference in RT for two isotopic channels in the same run", metavar='30')
     parser.add_argument("--frac_selected", dest="min_frac_selected", default=0.0, type=float, help="Do not write peakgroup if selected in less than this fraction of runs (range 0 to 1)", metavar='0')
     parser.add_argument('--method', default='best_overall', help="Which method to use for the clustering (best_overall, best_cluster_score or global_best_cluster_score, global_best_overall, LocalMST, LocalMSTAllCluster). Note that the MST options will perform a local, MST guided alignment while the other options will use a reference-guided alignment. The global option will also move peaks which are below the selected FDR threshold.")
@@ -734,7 +734,10 @@ def main(options):
             stdev_max_rt_per_run = options.mst_stdev_max_per_run
         else:
             stdev_max_rt_per_run = None
-            
+
+        if options.rt_diff_cutoff_units != "seconds": 
+            raise Exception("max_rt_diff_unit needs to be 'seconds' for tree-based methods, please use 'mst:Stdev_multiplier' for adaptive RT windows.")
+
         tree_out = doMSTAlignment(this_exp, 
                        multipeptides, float(options.rt_diff_cutoff), 
                        float(options.rt_diff_isotope),
@@ -746,7 +749,6 @@ def main(options):
         print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
     else:
         doReferenceAlignment(options, this_exp, multipeptides)
-
 
     # Filter by high confidence (e.g. keep only those where enough high confidence IDs are present)
     for mpep in multipeptides:
