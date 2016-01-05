@@ -36,8 +36,6 @@ $Authors: Hannes Roest$
 """
 from __future__ import print_function
 
-from __future__ import print_function
-
 import os, sys, csv, time
 import numpy
 import argparse
@@ -658,10 +656,6 @@ def handle_args():
     experimental_parser.add_argument("--mst:useLocalStdev", dest="mst_local_stdev", type=ast.literal_eval, default=False, help="Use standard deviation of local region of the chromatogram", metavar='False')
     experimental_parser.add_argument("--mst:useReference", dest="mst_use_ref", type=ast.literal_eval, default=False, help="Use a reference-based tree for alignment", metavar='False')
     experimental_parser.add_argument("--target_fdr", dest="target_fdr", default=-1, type=float, help="If parameter estimation is used, which target FDR should be optimized for. If set to lower than 0, parameter estimation is turned off.", metavar='0.01')
-
-    # deprecated methods
-    experimental_parser.add_argument('--realign_runs', action='store_true', default=False, help="Deprecated option (equals '--realign_method external_r')")
-    experimental_parser.add_argument('--use_external_r', action='store_true', default=False, help="Deprecated option (equals '--realign_method external_r')")
 
     args = parser.parse_args(sys.argv[1:])
 
