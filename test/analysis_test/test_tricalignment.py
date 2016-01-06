@@ -40,13 +40,15 @@ import subprocess as sub
 import os
 from nose.plugins.attrib import attr
 
-class TestFeatureAlignment(unittest.TestCase):
+class TestTRICAlignment(unittest.TestCase):
 
     def setUp(self):
         self.dirname = os.path.dirname(os.path.abspath(__file__))
         self.topdir = os.path.join(os.path.join(self.dirname, ".."), "..")
         self.datadir = os.path.join(os.path.join(self.topdir, "test"), "data")
         self.scriptdir = os.path.join(self.topdir, "analysis")
+
+        self.script = os.path.join(os.path.join(self.scriptdir, "alignment"), "tric_alignment.py")
 
     def exact_diff(self, name1, name2, sep="\t", header_exclude = []):
         """ Check whether two (csv/tsv) files are almost equal, allowing for numerical inaccuracies only."""
@@ -72,7 +74,6 @@ class TestFeatureAlignment(unittest.TestCase):
                     self.assertEqual(field1,field2)
 
     def test_1_featureAlignment_openswath(self):
-        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
         filename = os.path.join(self.datadir, "feature_alignment_openswath_input_1.csv")
         expected_outcome = os.path.join(self.datadir, "feature_alignment_1_openswath_output_cluster_ids.csv")
         expected_matrix_outcome = os.path.join(self.datadir, "feature_alignment_1_openswath_output_matrix.csv")
@@ -80,8 +81,8 @@ class TestFeatureAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_1.out.tmp_idsonly.csv"
         tmpfilename_matrix = "featureAlignment_1.out.tmp_matrix.tsv"
 
-        args = "--in %s --out %s --out_ids %s --out_matrix %s --method best_cluster_score --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
-        cmd = "python %s %s" % (script, args)
+        args = "--in %s --out %s --out_ids %s --out_matrix %s --realign_method diRT --method best_cluster_score --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
+        cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename_ids, expected_outcome)
@@ -92,7 +93,6 @@ class TestFeatureAlignment(unittest.TestCase):
         os.remove(tmpfilename_matrix)
 
     def test_2_featureAlignment_openswath_best_overall(self):
-        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
         filename = os.path.join(self.datadir, "feature_alignment_openswath_input_1.csv")
         expected_outcome = os.path.join(self.datadir, "feature_alignment_2_output_1_ids.csv")
         expected_matrix_outcome = os.path.join(self.datadir, "feature_alignment_2_output_2_matrix.csv")
@@ -100,8 +100,8 @@ class TestFeatureAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_2.out.tmp_idsonly.csv"
         tmpfilename_matrix = "featureAlignment_2.out.tmp_matrix.tsv"
 
-        args = "--in %s --out %s --out_ids %s --out_matrix %s --method best_overall --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
-        cmd = "python %s %s" % (script, args)
+        args = "--in %s --out %s --out_ids %s --out_matrix %s --realign_method diRT --method best_overall --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
+        cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename_ids, expected_outcome)
@@ -113,7 +113,6 @@ class TestFeatureAlignment(unittest.TestCase):
 
     def test_2_extra_linear_featureAlignment_openswath(self):
 
-        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
         filename = os.path.join(self.datadir, "feature_alignment_3_openswath_input.csv")
         expected_outcome = os.path.join(self.datadir, "feature_alignment_3_openswath_output_cluster_ids.csv")
 
@@ -122,7 +121,7 @@ class TestFeatureAlignment(unittest.TestCase):
 
         stdev_param = 1.5557361475 # should yield 30 seconds
         args = "--in %s --out %s --out_ids %s --realign_method 'linear' --method best_cluster_score --max_fdr_quality 0.4 --matrix_output_method RT --max_rt_diff_units median_stdev --max_rt_diff %s" % (filename, tmpfilename, tmpfilename_ids, stdev_param)
-        cmd = "python %s %s" % (script, args)
+        cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename_ids, expected_outcome)
@@ -133,14 +132,14 @@ class TestFeatureAlignment(unittest.TestCase):
     @attr('slow')
     @attr('rpy2')
     def test_3_featureAlignment_openswath_alignment(self):
-        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
+
         filename = os.path.join(self.datadir, "feature_alignment_3_openswath_input.csv")
         expected_outcome = os.path.join(self.datadir, "feature_alignment_3_openswath_output_cluster_ids.csv")
         tmpfilename = "featureAlignment_3.out.tmp"
         tmpfilename_ids = "featureAlignment_3.out.tmp_idsonly.csv"
 
         args = "--in %s --out %s --out_ids %s --realign_method 'splineR' --method best_cluster_score --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids)
-        cmd = "python %s %s" % (script, args)
+        cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename_ids, expected_outcome)
@@ -150,14 +149,14 @@ class TestFeatureAlignment(unittest.TestCase):
 
     @attr('slow')
     def test_4_featureAlignment_openswath_alignment_scikit(self):
-        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
+
         filename = os.path.join(self.datadir, "feature_alignment_3_openswath_input.csv")
         expected_outcome = os.path.join(self.datadir, "feature_alignment_3_openswath_output_cluster_ids.csv")
         tmpfilename = "featureAlignment_4.out.tmp"
         tmpfilename_ids = "featureAlignment_4.out.tmp_idsonly.csv"
 
         args = "--in %s --out %s --out_ids %s --realign_method 'splinePy' --method best_cluster_score --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids)
-        cmd = "python %s %s" % (script, args)
+        cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename_ids, expected_outcome)
@@ -166,14 +165,14 @@ class TestFeatureAlignment(unittest.TestCase):
         os.remove(tmpfilename_ids)
 
     def test_5_featureAlignment_peakview(self):
-        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
+
         filename = os.path.join(self.datadir, "feature_alignment_peakview_input_2.csv")
         expected_outcome = os.path.join(self.datadir, "feature_alignment_5_peakview_output_matrix.csv")
         tmpfilename = "featureAlignment_5.out.tmp"
         tmpfilename_matrix = "featureAlignment_5.out.tmp_matrix.tsv"
 
-        args = "--in %s --out %s --out_matrix %s --file_format peakview  --max_fdr_quality 0.0001 --fdr_cutoff 0.000000001 --method best_cluster_score --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_matrix)
-        cmd = "python %s %s" % (script, args)
+        args = "--in %s --out %s --out_matrix %s --file_format peakview  --max_fdr_quality 0.0001 --fdr_cutoff 0.000000001 --target_fdr -1 --realign_method diRT --method best_cluster_score --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_matrix)
+        cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename_matrix, expected_outcome)
@@ -181,7 +180,7 @@ class TestFeatureAlignment(unittest.TestCase):
         os.remove(tmpfilename_matrix)
 
     def test_6_featureAlignment_openswath_LocalMSTAllCluster(self):
-        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
+
         filename = os.path.join(self.datadir, "feature_alignment_openswath_input_1.csv")
         expected_outcome = os.path.join(self.datadir, "feature_alignment_6_output_1_ids.csv")
         expected_matrix_outcome = os.path.join(self.datadir, "feature_alignment_6_output_2_matrix.csv")
@@ -189,8 +188,8 @@ class TestFeatureAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_6.out.tmp_idsonly.csv"
         tmpfilename_matrix = "featureAlignment_6.out.tmp_matrix.tsv"
 
-        args = "--in %s --out %s --out_ids %s --out_matrix %s --method LocalMSTAllCluster --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
-        cmd = "python %s %s" % (script, args)
+        args = "--in %s --out %s --out_ids %s --out_matrix %s --realign_method diRT --method LocalMSTAllCluster --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
+        cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename_ids, expected_outcome)
@@ -201,7 +200,7 @@ class TestFeatureAlignment(unittest.TestCase):
         os.remove(tmpfilename_matrix)
 
     def test_7_featureAlignment_openswath_LocalMSTAllCluster_lowess(self):
-        script = os.path.join(os.path.join(self.scriptdir, "alignment"), "feature_alignment.py")
+
         filename = os.path.join(self.datadir, "feature_alignment_7_openswath_input.csv")
         expected_outcome_ids = os.path.join(self.datadir, "feature_alignment_7_output_1_ids.csv")
         expected_matrix_outcome = os.path.join(self.datadir, "feature_alignment_7_output_2_matrix.csv")
@@ -212,7 +211,7 @@ class TestFeatureAlignment(unittest.TestCase):
 
         args = "--in %s --out %s --out_ids %s --out_matrix %s --max_rt_diff 300 --file_format openswath --max_fdr_quality 0.1 --realign_method lowess --method LocalMSTAllCluster --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
 
-        cmd = "python %s %s" % (script, args)
+        cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename, expected_outcome, header_exclude = ["align_origfilename"])
