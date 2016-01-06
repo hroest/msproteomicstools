@@ -457,30 +457,6 @@ class Experiment(MRExperiment):
                 myYaml["RawData"].append(this)
             open(yaml_outfile, 'w').write(yaml.dump({"AlignedSwathRuns" : myYaml}))
 
-def estimate_aligned_fdr_cutoff(options, this_exp, multipeptides, fdr_range):
-    print("Try to find parameters for target fdr %0.2f %%" % (options.target_fdr * 100))
-
-    for aligned_fdr_cutoff in fdr_range:
-        # Do the alignment and annotate chromatograms without identified features 
-        # Then perform an outlier detection over multiple runs
-        # unselect all
-        for m in multipeptides:
-            for p in m.get_peptides():
-                p.unselect_all()
-
-        # now align
-        options.aligned_fdr_cutoff = aligned_fdr_cutoff
-        alignment = align_features(multipeptides, options.rt_diff_cutoff, options.fdr_cutoff, options.aligned_fdr_cutoff, options.method)
-        est_fdr = this_exp.estimate_real_fdr(multipeptides, options.min_frac_selected).est_real_fdr
-
-        print("Estimated FDR: %0.4f %%" % (est_fdr * 100), "at position aligned fdr cutoff ", aligned_fdr_cutoff)
-        if est_fdr > options.target_fdr:
-            # Unselect the peptides again ...
-            for m in multipeptides:
-                for p in m.get_peptides():
-                    p.unselect_all()
-            return aligned_fdr_cutoff
-
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
                    fdr_cutoff, aligned_fdr_cutoff, smoothing_method, method,
                    use_RT_correction, stdev_max_rt_per_run, use_local_stdev, mst_use_ref):
@@ -590,10 +566,7 @@ def doReferenceAlignment(options, this_exp, multipeptides):
     try:
         options.aligned_fdr_cutoff = float(options.aligned_fdr_cutoff)
     except ValueError:
-        # We have a range of values to step through. 
-        # Since we trust the input, wo dont do error checking.
-        exec("fdr_range = numpy.arange(%s)" % options.aligned_fdr_cutoff)
-        options.aligned_fdr_cutoff = estimate_aligned_fdr_cutoff(options, this_exp, multipeptides, fdr_range)
+        raise Exception("max_fdr_quality needs to be a number, I got %s" % options.aligned_fdr_cutoff) 
 
     try:
         options.rt_diff_cutoff = float(options.rt_diff_cutoff)
@@ -620,61 +593,61 @@ def doReferenceAlignment(options, this_exp, multipeptides):
 def handle_args():
     usage = "" #usage: %prog --in \"files1 file2 file3 ...\" [options]" 
     usage += "\nThis program will select all peakgroups below the FDR cutoff in all files and try to align them to each other."
-    usage += "\nIf only one file is given, it will act as peakgroup selector (best by m_score)" + \
-            "\nand will apply the provided FDR cutoff."
+    usage += "\nSee TRIC-README for a detailed explanation."
 
     import ast
     parser = argparse.ArgumentParser(description = usage )
-    parser.add_argument('--in', dest="infiles", required=True, nargs = '+', help = 'A list of mProphet output files containing all peakgroups (use quotes around the filenames)')
-    parser.add_argument('--file_format', default='openswath', help="Which input file format is used (openswath, mprophet or peakview)")
-    parser.add_argument("--out", dest="outfile", required=True, default="feature_alignment_outfile", help="Output file with filtered peakgroups for quantification (only works for OpenSWATH)")
-    parser.add_argument("--out_matrix", dest="matrix_outfile", default="", help="Matrix containing one peak group per row (supports .csv, .tsv or .xlsx)")
-    parser.add_argument("--out_ids", dest="ids_outfile", default="", help="Id file only containing the ids")
-    parser.add_argument("--out_meta", dest="yaml_outfile", default="", help="Outfile containing meta information, e.g. mapping of runs to original directories")
-    parser.add_argument("--fdr_cutoff", dest="fdr_cutoff", default=0.01, type=float, help="Seeding score cutoff", metavar='0.01')
-    parser.add_argument("--max_fdr_quality", dest="aligned_fdr_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR) - it is possible to give a range in the format lower,higher+stepsize,stepsize - e.g. 0,0.31,0.01 (-1 will set it to fdr_cutoff)", metavar='-1')
+    parser.add_argument('--in', dest="infiles", required=True, nargs = '+', help = 'List of mProphet output files containing all peakgroups (use quotes around the filenames)', metavar="INP")
+    parser.add_argument("--out_matrix", dest="matrix_outfile", default="", help="Matrix containing one peak group per row (supports .csv, .tsv or .xlsx)", metavar="OUTFILE")
+    parser.add_argument("--out", dest="outfile", required=True, default="feature_alignment_outfile", help="Output file with filtered peakgroups for quantification (only works for OpenSWATH)", metavar="OUTFILE")
     parser.add_argument("--max_rt_diff", dest="rt_diff_cutoff", default=30, help="Maximal difference in RT for two aligned features", metavar='30')
     parser.add_argument("--max_rt_diff_units", dest="rt_diff_cutoff_units", default="seconds", help="Units for RT diff (seconds, median_stdev)", metavar='seconds')
     parser.add_argument("--iso_max_rt_diff", dest="rt_diff_isotope", default=10, help="Maximal difference in RT for two isotopic channels in the same run", metavar='30')
-    parser.add_argument("--frac_selected", dest="min_frac_selected", default=0.0, type=float, help="Do not write peakgroup if selected in less than this fraction of runs (range 0 to 1)", metavar='0')
-    parser.add_argument('--method', default='best_overall', help="Which method to use for the clustering (best_overall, best_cluster_score or global_best_cluster_score, global_best_overall, LocalMST, LocalMSTAllCluster). Note that the MST options will perform a local, MST guided alignment while the other options will use a reference-guided alignment. The global option will also move peaks which are below the selected FDR threshold.")
-    parser.add_argument("--verbosity", default=0, type=int, help="Verbosity (0 = little)", metavar='0')
-    parser.add_argument("--matrix_output_method", dest="matrix_output_method", default='none', help="Which columns are written besides Intensity (none, RT, score, source or full)")
-    parser.add_argument('--realign_method', dest='realign_method', default="diRT", help="How to re-align runs in retention time ('diRT': use only deltaiRT from the input file, 'linear': perform a linear regression using best peakgroups, 'splineR': perform a spline fit using R, 'splineR_external': perform a spline fit using R (start an R process using the command line), 'splinePy' use Python native spline from scikits.datasmooth (slow!), 'lowess': use Robust locally weighted regression (lowess smoother), 'nonCVSpline, CVSpline': splines with and without cross-validation, 'Earth' : use Multivariate Adaptive Regression Splines using py-earth")
+    parser.add_argument('--method', default='LocalMST', help="Which method to use for the clustering (best_overall, global_best_overall, LocalMST). See TRIC-README for a detailed explanation.")
+    parser.add_argument('--realign_method', dest='realign_method', default="lowess", help="Transformation function to align runs in retention time (diRT, linear, lowess, WeightedNearestNeighbour, SmoothLLDMedian, splineR). See TRIC-README for a detailed explanation.", metavar="lowess")
 
-    experimental_parser = parser.add_argument_group('experimental options')
+    parser.add_argument("--target_fdr", dest="target_fdr", default=0.01, type=float, help="FDR to be targeted (uses decoys to estimate FDR, use -1 to turn off and set 'fdr_cutoff' manually)", metavar='0.01')
 
-    experimental_parser.add_argument('--disable_isotopic_grouping', action='store_true', default=False, help="Disable grouping of isotopic variants by peptide_group_label, thus disabling matching of isotopic variants of the same peptide across channels. If turned off, each isotopic channel will be matched independently of the other. If enabled, the more certain identification will be used to infer the location of the peak in the other channel.")
-    experimental_parser.add_argument('--use_dscore_filter', action='store_true', default=False)
-    experimental_parser.add_argument("--dscore_cutoff", default=1.96, type=float, help="Quality cutoff to still consider a feature for alignment using the d_score: everything below this d-score is discarded", metavar='1.96')
-    experimental_parser.add_argument("--nr_high_conf_exp", default=1, type=int, help="Number of experiments in which the peptide needs to be identified with high confidence (e.g. above fdr_cutoff)", metavar='1')
-    experimental_parser.add_argument("--readmethod", dest="readmethod", default="minimal", help="Read full or minimal transition groups (minimal,full)", metavar="minimal")
-    experimental_parser.add_argument("--tmpdir", dest="tmpdir", default="/tmp/", help="Temporary directory")
-    experimental_parser.add_argument("--alignment_score", dest="alignment_score", default=0.0001, type=float, help="Minimal score needed for a feature to be considered for alignment between runs", metavar='0.0001')
-    experimental_parser.add_argument("--mst:useRTCorrection", dest="mst_correct_rt", type=ast.literal_eval, default=False, help="Use aligned peakgroup RT to continue threading in MST algorithm", metavar='False')
-    experimental_parser.add_argument("--mst:Stdev_multiplier", dest="mst_stdev_max_per_run", type=float, default=-1.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (if less than max_rt_diff, then max_rt_diff is used)", metavar='-1.0')
-    experimental_parser.add_argument("--mst:useLocalStdev", dest="mst_local_stdev", type=ast.literal_eval, default=False, help="Use standard deviation of local region of the chromatogram", metavar='False')
-    experimental_parser.add_argument("--mst:useReference", dest="mst_use_ref", type=ast.literal_eval, default=False, help="Use a reference-based tree for alignment", metavar='False')
-    experimental_parser.add_argument("--target_fdr", dest="target_fdr", default=-1, type=float, help="If parameter estimation is used, which target FDR should be optimized for. If set to lower than 0, parameter estimation is turned off.", metavar='0.01')
+    parser.add_argument("--mst:useRTCorrection", dest="mst_correct_rt", type=ast.literal_eval, default=False, help="Use aligned peakgroup RT to continue threading in MST algorithm", metavar='True')
+    parser.add_argument("--mst:Stdev_multiplier", dest="mst_stdev_max_per_run", type=float, default=3.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (if less than max_rt_diff, then max_rt_diff is used)", metavar='3.0')
+
+
+    ### Advanced options
+    advanced_parser = parser.add_argument_group('advanced options')
+
+    advanced_parser.add_argument('--file_format', default='openswath', help="Input file format (openswath, mprophet or peakview)", metavar="FORMAT")
+    advanced_parser.add_argument("--out_ids", dest="ids_outfile", default="", help="Id file only containing the ids", metavar="OUTFILE")
+    advanced_parser.add_argument("--out_meta", dest="yaml_outfile", default="", help="Output file in YAML format containing meta information", metavar="OUTFILE")
+    advanced_parser.add_argument("--verbosity", default=0, type=int, help="Verbosity (0 = little)", metavar='0')
+    advanced_parser.add_argument("--matrix_output_method", dest="matrix_output_method", default='none', help="Which columns are written besides Intensity (none, RT, score, source or full)")
+
+    advanced_parser.add_argument("--fdr_cutoff", dest="fdr_cutoff", default=-1.0, type=float, help="Seeding score cutoff", metavar='-1')
+    advanced_parser.add_argument("--max_fdr_quality", dest="aligned_fdr_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR)", metavar='-1')
+    advanced_parser.add_argument('--disable_isotopic_grouping', action='store_true', default=False, help="Disable grouping of isotopic variants by peptide_group_label")
+
+    advanced_parser.add_argument("--mst:useLocalStdev", dest="mst_local_stdev", type=ast.literal_eval, default=False, help="Use standard deviation of local region of the chromatogram", metavar='False')
+    advanced_parser.add_argument("--mst:useReference", dest="mst_use_ref", type=ast.literal_eval, default=False, help="Use a reference-based tree for alignment", metavar='False')
+
+    advanced_parser.add_argument("--frac_selected", dest="min_frac_selected", default=0.0, type=float, help="Do not write peakgroup if selected in less than this fraction of runs (range 0 to 1)", metavar='0.0')
+    advanced_parser.add_argument('--use_dscore_filter', action='store_true', default=False, help="Turn on d-score filter (default is off)")
+    advanced_parser.add_argument("--dscore_cutoff", default=1.96, type=float, help="Discard features below this d-score", metavar='1.96')
+    advanced_parser.add_argument("--nr_high_conf_exp", default=1, type=int, help="Number of experiments in which the peptide needs to be identified with confidence score above 'fdr_cutoff'", metavar='1')
+    advanced_parser.add_argument("--readmethod", dest="readmethod", default="minimal", help="Read full or minimal transition groups (minimal,full)", metavar="minimal")
+    advanced_parser.add_argument("--tmpdir", dest="tmpdir", default="/tmp/", help="Temporary directory")
+    advanced_parser.add_argument("--alignment_score", dest="alignment_score", default=0.0001, type=float, help="Minimal score needed for a feature to be considered for alignment between runs", metavar='0.0001')
 
     args = parser.parse_args(sys.argv[1:])
-
-    # deprecated
-    if args.realign_runs or args.use_external_r:
-        print("WARNING, deprecated --realign_runs or --use_external_r used! Please use --realign_method instead")
-        args.realign_method = "splineR_external"
 
     if args.min_frac_selected < 0.0 or args.min_frac_selected > 1.0:
         raise Exception("Argument frac_selected needs to be a number between 0 and 1.0")
 
     if args.target_fdr > 0:
         # Parameter estimation turned on: check user input ...
-        if args.fdr_cutoff != 0.01:
+        if args.fdr_cutoff > 0:
             raise Exception("You selected parameter estimation with target_fdr - cannot set fdr_cutoff as well! It does not make sense to ask for estimation of the fdr_cutoff (target_fdr > 0.0) and at the same time specify a certain fdr_cutoff.")
         args.fdr_cutoff = args.target_fdr
-        # if args.aligned_fdr_cutoff != -1.0:
-        #     raise Exception("You selected parameter estimation with target_fdr - cannot set max_fdr_quality as well!")
-        pass
+        if float(args.aligned_fdr_cutoff) < 0:
+            print("Setting max_fdr_quality automatically to cutoff of", args.target_fdr)
     else:
         # Parameter estimation turned off: Check max fdr quality ...
         try:
