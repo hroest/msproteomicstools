@@ -598,8 +598,8 @@ def handle_args():
     import ast
     parser = argparse.ArgumentParser(description = usage )
     parser.add_argument('--in', dest="infiles", required=True, nargs = '+', help = 'List of mProphet output files containing all peakgroups (use quotes around the filenames)', metavar="INP")
-    parser.add_argument("--out_matrix", dest="matrix_outfile", default="", help="Matrix containing one peak group per row (supports .csv, .tsv or .xlsx)", metavar="OUTFILE")
-    parser.add_argument("--out", dest="outfile", required=True, default="feature_alignment_outfile", help="Output file with filtered peakgroups for quantification (only works for OpenSWATH)", metavar="OUTFILE")
+    parser.add_argument("--out_matrix", dest="matrix_outfile", default="", help="Data matrix output containing one peak group per row (supports .csv, .tsv or .xlsx)", metavar="OUTFILE")
+    parser.add_argument("--out", dest="outfile", required=False, default="feature_alignment_outfile", help="Output file with filtered peakgroups for quantification (only works for OpenSWATH files)", metavar="OUTFILE")
     parser.add_argument("--max_rt_diff", dest="rt_diff_cutoff", default=30, help="Maximal difference in RT for two aligned features", metavar='30')
     parser.add_argument("--max_rt_diff_units", dest="rt_diff_cutoff_units", default="seconds", help="Units for RT diff (seconds, median_stdev)", metavar='seconds')
     parser.add_argument("--iso_max_rt_diff", dest="rt_diff_isotope", default=10, help="Maximal difference in RT for two isotopic channels in the same run", metavar='30')
@@ -609,7 +609,7 @@ def handle_args():
     parser.add_argument("--target_fdr", dest="target_fdr", default=0.01, type=float, help="FDR to be targeted (uses decoys to estimate FDR, use -1 to turn off and set 'fdr_cutoff' manually)", metavar='0.01')
 
     parser.add_argument("--mst:useRTCorrection", dest="mst_correct_rt", type=ast.literal_eval, default=False, help="Use aligned peakgroup RT to continue threading in MST algorithm", metavar='True')
-    parser.add_argument("--mst:Stdev_multiplier", dest="mst_stdev_max_per_run", type=float, default=3.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (if less than max_rt_diff, then max_rt_diff is used)", metavar='3.0')
+    parser.add_argument("--mst:Stdev_multiplier", dest="mst_stdev_max_per_run", type=float, default=3.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (if less than max_rt_diff, then max_rt_diff is used; disable with -1.0)", metavar='3.0')
 
 
     ### Advanced options
