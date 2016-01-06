@@ -53,7 +53,7 @@ import msproteomicstoolslib.algorithms.alignment.AlignmentHelper as helper
 from msproteomicstoolslib.algorithms.alignment.BorderIntegration import \
         integrationBorderShortestPath, integrationBorderShortestDistance, integrationBorderReference
 import msproteomicstoolslib.math.Smoothing as smoothing
-from feature_alignment import Experiment
+from tric_alignment import Experiment
 
 # The Window overlap which needs to be taken into account when calculating from which swath window to extract!
 SWATH_EDGE_SHIFT = 1
