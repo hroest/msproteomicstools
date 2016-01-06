@@ -134,7 +134,9 @@ useful to remove spurious identifications but may lead to low identification
 numbers if the parameters are too strict).
 
 The reference-based approach will try to automatically estimate a sensible
-value if you set ```--max_rt_diff``` to ```auto_3medianstdev```.
+value for the RT difference if you set ```--rt_diff_cutoff_units``` to
+```median_stdev``` and use a value between 2.0 and 4.0 for
+```--rt_diff_cutoff``` (only works for the reference-based alignment).
 
 ### <a name="tree-alignment"></a> Tree-based alignment
 
