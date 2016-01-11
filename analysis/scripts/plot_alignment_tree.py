@@ -10,7 +10,7 @@ if len(sys.argv) < 4:
     print "  treeFormat is one of (%s)" % ", ".join(allowedTreeFormat)
     print "  drawFormat is one of (%s)" % ", ".join(allowedDrawFormat)
     print ""
-    print "    this software takes a .yaml output file from a feature_alignment\n\
+    print "    this software takes a .yaml output file from a tric_alignment\n\
     run and draws the corresponding tree in a specific output format (pdf, svg, ...)"
     print "    requires the graphviz package to be installed and works on a linux machine"
     sys.exit()

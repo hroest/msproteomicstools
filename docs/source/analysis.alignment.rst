@@ -4,51 +4,51 @@ Alignment executables
 :mod:`FeatureAlignment` executable
 -------------------
 
-The Feature Alignment executable can be run as ::
+The TRIC algorithm for feature alignment can be run as ::
 
-  python feature_alignment.py 
+  python tric_alignment.py 
 
 and the for help please use ::
 
-  python feature_alignment.py --help 
+  python tric_alignment.py --help 
 
 Some of the most used options are the following
 
 fdr_cutoff
-""""""""""
-This is the seeding score cutoff, if a precursor has an identification in one
+""""""""""""""""""
+This is the fixed seeding score cutoff, if a precursor has an identification in one
 run with at least this score, it will be included for alignment.
 
-max_fdr_quality
-""""""""""""""""
+fdr_extension_cutoff
+""""""""""""""""""""
 This is the extension score cutoff. During each step of the algorithm, a
 peakgroup from a new run is added to the initial seed (see above). Only if the
-additional peakgroup in the new run has a score better than max_fdr_quality
+additional peakgroup in the new run has a score better than fdr_extension_cutoff
 will it be included in the final result.
 
 target_fdr
 """"""""""
 Experimental option for dynamic parameter estimation of the fdr_cutoff
 parameter. If you want to use this, please turn off fdr_cutoff (but
-max_fdr_quality still needs to be set).
+fdr_extension_cutoff still needs to be set).
 
 method
 """"""
-Defines the method to use for the clustering. Available options are 
+Defines the method to use for the confidence transfer. Available options are 
 
 * best_overall
 * best_cluster_score 
 * global_best_cluster_score
 * global_best_overall
 * LocalMST
-*  LocalMSTAllCluster
+* LocalMSTAllCluster
 
 Note that the MST options will perform a local, MST guided alignment while the
 other options will use a reference-guided alignment. The global option will
 also move peaks which are below the selected FDR threshold (while the
 best_overall and best_cluster_score will not touch any peak that is below fdr_cutoff).
 
-realign_method
+rt_alignment
 """"""""""""""
 Method to use to re-align retention times between pairs of runs. The following options are available:
 
