@@ -35,7 +35,6 @@ $Authors: Hannes Roest$
 --------------------------------------------------------------------------
 """
 from __future__ import print_function
-import sys
 
 if __name__=="__main__":
     print("Please do not use feature_alignment.py any more, it is deprecated.")
