@@ -81,8 +81,8 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_1.out.tmp_idsonly.csv"
         tmpfilename_matrix = "featureAlignment_1.out.tmp_matrix.tsv"
 
-        args = "--in %s --out %s --out_ids %s --out_matrix %s --realign_method diRT --method best_cluster_score \
-                --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
+        args = "--in %s --out %s --out_ids %s --out_matrix %s --rt_alignment diRT --method best_cluster_score \
+                --fdr_extension_cutoff 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
@@ -101,8 +101,8 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_2.out.tmp_idsonly.csv"
         tmpfilename_matrix = "featureAlignment_2.out.tmp_matrix.tsv"
 
-        args = "--in %s --out %s --out_ids %s --out_matrix %s --realign_method diRT --method best_overall \
-                --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
+        args = "--in %s --out %s --out_ids %s --out_matrix %s --rt_alignment diRT --method best_overall \
+                --fdr_extension_cutoff 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
@@ -122,8 +122,8 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_2_linear.out.tmp_idsonly.csv"
 
         stdev_param = 1.5557361475 # should yield 30 seconds
-        args = "--in %s --out %s --out_ids %s --realign_method 'linear' --method best_cluster_score \
-                --max_fdr_quality 0.4 --matrix_output_method RT --max_rt_diff_units median_stdev --max_rt_diff %s" % (
+        args = "--in %s --out %s --out_ids %s --rt_alignment 'linear' --method best_cluster_score \
+                --fdr_extension_cutoff 0.4 --matrix_output_method RT --fixed_rt_diff_units median_stdev --fixed_rt_diff %s" % (
                     filename, tmpfilename, tmpfilename_ids, stdev_param)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
@@ -142,8 +142,8 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename = "featureAlignment_3.out.tmp"
         tmpfilename_ids = "featureAlignment_3.out.tmp_idsonly.csv"
 
-        args = "--in %s --out %s --out_ids %s --realign_method 'splineR' --method best_cluster_score \
-                --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids)
+        args = "--in %s --out %s --out_ids %s --rt_alignment 'splineR' --method best_cluster_score \
+                --fdr_extension_cutoff 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
@@ -160,8 +160,8 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename = "featureAlignment_4.out.tmp"
         tmpfilename_ids = "featureAlignment_4.out.tmp_idsonly.csv"
 
-        args = "--in %s --out %s --out_ids %s --realign_method 'splinePy' --method best_cluster_score \
-                --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids)
+        args = "--in %s --out %s --out_ids %s --rt_alignment 'splinePy' --method best_cluster_score \
+                --fdr_extension_cutoff 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
@@ -178,7 +178,7 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename_matrix = "featureAlignment_5.out.tmp_matrix.tsv"
 
         args = "--in %s --out %s --out_matrix %s --file_format peakview  \
-                --max_fdr_quality 0.0001 --fdr_cutoff 0.000000001 --target_fdr -1 --realign_method diRT \
+                --fdr_extension_cutoff 0.0001 --fdr_cutoff 0.000000001 --target_fdr -1 --rt_alignment diRT \
                 --method best_cluster_score --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_matrix)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
@@ -196,8 +196,8 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_6.out.tmp_idsonly.csv"
         tmpfilename_matrix = "featureAlignment_6.out.tmp_matrix.tsv"
 
-        args = "--in %s --out %s --out_ids %s --out_matrix %s --realign_method diRT --method LocalMSTAllCluster \
-                --max_fdr_quality 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
+        args = "--in %s --out %s --out_ids %s --out_matrix %s --rt_alignment diRT --method LocalMSTAllCluster \
+                --fdr_extension_cutoff 0.4 --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
         
@@ -218,8 +218,8 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename_ids = "featureAlignment_7.out.tmp_idsonly.csv"
         tmpfilename_matrix = "featureAlignment_7.out.tmp_matrix.tsv"
 
-        args = "--in %s --out %s --out_ids %s --out_matrix %s --max_rt_diff 300 --file_format openswath \
-                --max_fdr_quality 0.1 --realign_method lowess --method LocalMSTAllCluster --matrix_output_method RT" % (
+        args = "--in %s --out %s --out_ids %s --out_matrix %s --fixed_rt_diff 300 --file_format openswath \
+                --fdr_extension_cutoff 0.1 --rt_alignment lowess --method LocalMSTAllCluster --matrix_output_method RT" % (
                     filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
 
         cmd = "python %s %s" % (self.script, args)
