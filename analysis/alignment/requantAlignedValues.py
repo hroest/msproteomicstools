@@ -437,7 +437,7 @@ def analyze_multipeptides(new_exp, multipeptides, swath_chromatograms,
         if all([pg.get_cluster_id() == -1 for p in m.getAllPeptides() for pg in p.get_all_peakgroups()]):
             if any([len(p.peakgroups) > 1 for p in m.getAllPeptides()] ):
                 raise Exception("Found more than one peakgroup for peptide %s - \
-                    \n is this after alignment or did you forget to run feature_alignment.py beforehand?" % (
+                    \n is this after alignment or did you forget to run tric_alignment.py beforehand?" % (
                     m.get_id() ))
 
         clusters = set( [pg.get_cluster_id() for p in m.getAllPeptides() for pg in p.get_all_peakgroups()])
@@ -764,7 +764,7 @@ def handle_args():
 
     parser = argparse.ArgumentParser(description = usage )
     parser.add_argument('--in', dest="infiles", nargs = '+', required=False, help = 'A list of transformation files in the same folder as the .chrom.mzML files')
-    parser.add_argument("--peakgroups_infile", dest="peakgroups_infile", required=True, help="Infile containing peakgroups (outfile from feature_alignment.py)")
+    parser.add_argument("--peakgroups_infile", dest="peakgroups_infile", required=True, help="Infile containing peakgroups (outfile from tric_alignment.py)")
     parser.add_argument("--out", dest="output", required=True, help="Output file with imputed values")
     parser.add_argument('--file_format', default='openswath', help="Which input file format is used (openswath, mprophet or peakview)")
     parser.add_argument("--out_matrix", dest="matrix_outfile", default="", help="Matrix containing one peak group per row (supports .csv, .tsv or .xls)")
@@ -774,7 +774,8 @@ def handle_args():
     parser.add_argument('--test', dest="is_test", action='store_true', default=False, help="For running the tests (does not add a random id to the results)")
     parser.add_argument('--cache_in_memory', action='store_true', default=False, help="Cache data from a single run in memory")
     parser.add_argument('--method', dest='method', default="reference", help="Which method to use (singleShortestPath, singleClosestRun, reference)")
-    parser.add_argument('--realign_runs', dest='realign_method', default="splineR", help="How to re-align runs in retention time ('diRT': use only deltaiRT from the input file, 'linear': perform a linear regression using best peakgroups, 'splineR': perform a spline fit using R, 'splineR_external': perform a spline fit using R (start an R process using the command line), 'splinePy' use Python native spline from scikits.datasmooth (slow!), 'lowess': use Robust locally weighted regression (lowess smoother), 'nonCVSpline, CVSpline': splines with and without cross-validation, 'Earth' : use Multivariate Adaptive Regression Splines using py-earth")
+    parser.add_argument('--rt_alignment', dest='realign_method', default="lowess", help="Transformation function to align runs in retention time (diRT, linear, lowess, WeightedNearestNeighbour, SmoothLLDMedian, splineR). See TRIC-README for a detailed explanation.", metavar="lowess")
+
     parser.add_argument('--verbosity', default=0, type=int, help="Verbosity")
     parser.add_argument('--do_single_run', default='', metavar="", help="Only do a single run")
 
