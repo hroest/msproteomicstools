@@ -121,7 +121,7 @@ class TestNoiseIntegration(unittest.TestCase):
         tmpfilename_matrix = "imputeValues_3.out.tmp_matrix.tsv"
 
         args = "--do_single_run %s --peakgroups_infile %s  --out %s --out_matrix %s\
-                --rt_alignment None --method singleShortestPath --matrix_output_method RT --test" % (
+                --rt_alignment None --transfer_method singleShortestPath --matrix_output_method RT --test" % (
             mzml_file, filename, tmpfilename, tmpfilename_matrix)
         cmd = "python %s %s" % (script, args)
         sub.check_output(cmd,shell=True)
@@ -141,7 +141,7 @@ class TestNoiseIntegration(unittest.TestCase):
         tmpfilename_matrix = "imputeValues_4.out.tmp_matrix.tsv"
 
         args = "--do_single_run %s --peakgroups_infile %s  --out %s --out_matrix %s\
-                --rt_alignment None --method singleClosestRun --matrix_output_method RT --test" % (
+                --rt_alignment None --transfer_method singleClosestRun --matrix_output_method RT --test" % (
             mzml_file, filename, tmpfilename, tmpfilename_matrix)
         cmd = "python %s %s" % (script, args)
         sub.check_output(cmd,shell=True)
@@ -161,7 +161,7 @@ class TestNoiseIntegration(unittest.TestCase):
         tmpfilename_matrix = "imputeValues_5.out.tmp_matrix.tsv"
 
         args = "--do_single_run %s --peakgroups_infile %s  --out %s --out_matrix %s\
-                --rt_alignment linear --method singleClosestRun --matrix_output_method RT --test" % (
+                --rt_alignment linear --transfer_method singleClosestRun --matrix_output_method RT --test" % (
             mzml_file, filename, tmpfilename, tmpfilename_matrix)
         cmd = "python %s %s" % (script, args)
         sub.check_output(cmd,shell=True)
@@ -181,7 +181,7 @@ class TestNoiseIntegration(unittest.TestCase):
         tmpfilename_matrix = "imputeValues_6.out.tmp_matrix.tsv"
 
         args = "--do_single_run %s --peakgroups_infile %s  --out %s --out_matrix %s\
-                --rt_alignment linear --method singleShortestPath --matrix_output_method RT --test" % (
+                --rt_alignment linear --transfer_method singleShortestPath --matrix_output_method RT --test" % (
             mzml_file, filename, tmpfilename, tmpfilename_matrix)
         cmd = "python %s %s" % (script, args)
         sub.check_output(cmd,shell=True)
