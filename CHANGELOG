@@ -1,5 +1,36 @@
 
 ---------------------------------------------------------------------------
+
+- renamed feature_alignment.py to tric_alignment.py
+- the following parameters were re-named for tric_alignment.py:
+  
+  max_rt_diff -> fixed_rt_diff
+  max_rt_diff_units -> fixed_rt_diff_units
+  iso_max_rt_diff -> iso_fixed_rt_diff
+  realign_method -> rt_alignment
+  max_fdr_quality -> fdr_extension_cutoff
+  alignment_score -> rt_anchor_score
+  mst:Stdev_multiplier -> adaptive_rtdiff_multiplier
+  method -> tric_method
+  fdr_cutoff -> fixed_seeding_cutoff
+
+- the following parameters were re-named for requantAlignedValues.py:
+  
+  realign_runs -> rt_alignment
+  method -> transfer_method
+
+Furthermore, the default values were changed to 
+
+- "lowess" (for rt_alignment)
+- "LocalMST" (for tric_method) 
+- "3.0" (for adaptive_rtdiff_multiplier) 
+- "True" (for mst:useRTCorrection)
+- "-1" (for fixed_seeding_cutoff)
+- 0.01 (for target_fdr)
+
+to reflect the parameters used in the TRIC paper.
+
+---------------------------------------------------------------------------
   Release 0.4.0
 ---------------------------------------------------------------------------
 
