@@ -96,10 +96,10 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         """Test the best overall algorithm"""
 
         rt_diff_cutoff = 10
-        fdr_cutoff = 0.15
-        aligned_fdr_cutoff = 0.15
+        fdr_seeding_cutoff = 0.15
+        fdr_extension_cutoff = 0.15
 
-        self.al._align_features_cluster(self.mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "dummy")
+        self.al._align_features_cluster(self.mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "dummy")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 1)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -108,10 +108,10 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         """Test the best overall algorithm"""
 
         rt_diff_cutoff = 10
-        fdr_cutoff = 0.15
-        aligned_fdr_cutoff = 0.3
+        fdr_seeding_cutoff = 0.15
+        fdr_extension_cutoff = 0.3
 
-        self.al._align_features_cluster(self.mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "dummy")
+        self.al._align_features_cluster(self.mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "dummy")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 2)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -121,10 +121,10 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         """Test the best overall algorithm"""
 
         rt_diff_cutoff = 40
-        fdr_cutoff = 0.15
-        aligned_fdr_cutoff = 0.3
+        fdr_seeding_cutoff = 0.15
+        fdr_extension_cutoff = 0.3
 
-        self.al._align_features_cluster(self.mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "dummy")
+        self.al._align_features_cluster(self.mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "dummy")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 2)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -135,10 +135,10 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         """Test the best overall algorithm"""
 
         rt_diff_cutoff = 10
-        fdr_cutoff = 0.15
-        aligned_fdr_cutoff = 0.15
+        fdr_seeding_cutoff = 0.15
+        fdr_extension_cutoff = 0.15
 
-        self.al.align_features([ self.mpep ], rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "best_cluster_score")
+        self.al.align_features([ self.mpep ], rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "best_cluster_score")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 1)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -147,10 +147,10 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         """Test the best overall algorithm"""
 
         rt_diff_cutoff = 10
-        fdr_cutoff = 0.15
-        aligned_fdr_cutoff = 0.15
+        fdr_seeding_cutoff = 0.15
+        fdr_extension_cutoff = 0.15
 
-        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "dummy")
+        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "dummy")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 1)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -159,10 +159,10 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         """Test the best overall algorithm"""
 
         rt_diff_cutoff = 10
-        fdr_cutoff = 0.15
-        aligned_fdr_cutoff = 0.3
+        fdr_seeding_cutoff = 0.15
+        fdr_extension_cutoff = 0.3
 
-        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "dummy")
+        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "dummy")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 2)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -172,10 +172,10 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         """Test the best overall algorithm"""
 
         rt_diff_cutoff = 40
-        fdr_cutoff = 0.15
-        aligned_fdr_cutoff = 0.3
+        fdr_seeding_cutoff = 0.15
+        fdr_extension_cutoff = 0.3
 
-        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "dummy")
+        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "dummy")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 2)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -184,11 +184,11 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
     def test_best_3(self):
         """Test the best overall algorithm"""
 
-        aligned_fdr_cutoff = 0.3
-        fdr_cutoff = 0.15
+        fdr_extension_cutoff = 0.3
+        fdr_seeding_cutoff = 0.15
         rt_diff_cutoff = 4
 
-        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "dummy")
+        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "dummy")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 1)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -196,11 +196,11 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
     def test_best_4(self):
         """Test the best overall algorithm"""
 
-        aligned_fdr_cutoff = 0.3
-        fdr_cutoff = 0.15
+        fdr_extension_cutoff = 0.3
+        fdr_seeding_cutoff = 0.15
         rt_diff_cutoff = 4
 
-        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "best_overall")
+        self.al._align_features_best(self.mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "best_overall")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 1)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )
@@ -209,10 +209,10 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         """Test the best overall algorithm"""
 
         rt_diff_cutoff = 10
-        fdr_cutoff = 0.15
-        aligned_fdr_cutoff = 0.15
+        fdr_seeding_cutoff = 0.15
+        fdr_extension_cutoff = 0.15
 
-        self.al.align_features([ self.mpep ], rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, "best_overall")
+        self.al.align_features([ self.mpep ], rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, "best_overall")
         self.assertEqual( len(self.mpep.get_selected_peakgroups()), 1)
         self.assertIsNotNone( self.mpep.getPrecursorGroup("0_1").getPrecursor("precursor_1").get_selected_peakgroup() )
         self.assertIsNone( self.mpep.getPrecursorGroup("0_2").getPrecursor("precursor_1").get_selected_peakgroup() )

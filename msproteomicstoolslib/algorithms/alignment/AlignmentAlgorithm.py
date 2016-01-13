@@ -102,7 +102,7 @@ class AlignmentAlgorithm():
     def __init__(self): 
         self.verbose = False
 
-    def align_features(self, multipeptides, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, method="best_overall"):
+    def align_features(self, multipeptides, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, method="best_overall"):
         """ Perform the alignment on a set of multipeptides
 
         Args:
@@ -111,8 +111,8 @@ class AlignmentAlgorithm():
                 alignment, each peakgroup that should be quantified can be
                 retrieved by calling get_selected_peakgroups() on the multipeptide.
             rt_diff_cutoff(float): maximal allowed RT difference used in the clustering or the 
-            fdr_cutoff(float): FDR cutoff for "seeds" (e.g. the "known good" cutoff, for example 0.01)
-            aligned_fdr_cutoff(float): maximal FDR cutoff to still be considered for the clustering
+            fdr_seeding_cutoff(float): FDR cutoff for "seeds" (e.g. the "known good" cutoff, for example 0.01)
+            fdr_extension_cutoff(float): maximal FDR cutoff to still be considered for the clustering
             method(String): either best_overall or best_cluster_score (or global_best_cluster_score, global_best_overall)
 
         Returns:
@@ -121,7 +121,7 @@ class AlignmentAlgorithm():
 
         for mpep in multipeptides:
 
-            if mpep.all_above_cutoff(fdr_cutoff) and method in ["best_cluster_score", "best_overall"]:
+            if mpep.all_above_cutoff(fdr_seeding_cutoff) and method in ["best_cluster_score", "best_overall"]:
                 # In non-global algorithms, do not re-align if the fdr is above the threshold in all runs
                 for prgr in mpep.getPrecursorGroups():
                     for p in prgr:
@@ -129,15 +129,15 @@ class AlignmentAlgorithm():
                 continue
 
             if method == "naive":
-                self._align_features_naive(mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, method)
+                self._align_features_naive(mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, method)
             elif method == "global_best_cluster_score" or method == "best_cluster_score":
-                self._align_features_cluster(mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, method)
+                self._align_features_cluster(mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, method)
             elif method == "global_best_overall" or method == "best_overall":
-                self._align_features_best(mpep, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, method)
+                self._align_features_best(mpep, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, method)
             else:
                 raise Exception("Method '%s' unknown" % method)
 
-    def _align_features_cluster(self, m, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, method):
+    def _align_features_cluster(self, m, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, method):
         """ Align features by clustering all peakgroups 
 
         This algorithm will find the best peakgroup cluster over all runs and
@@ -158,7 +158,7 @@ class AlignmentAlgorithm():
         groups = [ pg 
             for p in m.getAllPeptides() # loop over all peptides
                 for pg in p.get_all_peakgroups() # loop over all peakgroups
-                    if pg.get_fdr_score() < aligned_fdr_cutoff
+                    if pg.get_fdr_score() < fdr_extension_cutoff
         ]
 
         # Check for empty groups
@@ -180,26 +180,26 @@ class AlignmentAlgorithm():
             if verb:
                 print(" - Cluster with score", c.getTotalScore(), "at", \
                   c.getMedianRT(), "+/-", c.getRTstd() , "(norm_score %s)" %\
-                  (float(c.getTotalScore())/((aligned_fdr_cutoff/2)**len(c.peakgroups))) )
+                  (float(c.getTotalScore())/((fdr_extension_cutoff/2)**len(c.peakgroups))) )
                 for pg in c.peakgroups: 
                     print("   = Have member", pg.print_out())
           
         # Get best cluster by length-normalized best score.
         #   Length normalization divides the score by the expected probability
         #   values if all peakgroups were chosen randomly (assuming equal
-        #   probability between 0 and aligned_fdr_cutoff, the expected value
-        #   for a random peakgroup is "aligned_fdr_cutoff/2") and thus the
-        #   expected random value of n peakgroups would be (aligned_fdr_cutoff/2)^n
-        bestcluster = min(clusters_rt_obj, key=(lambda x: x.getTotalScore()/(((aligned_fdr_cutoff/2)**len(c.peakgroups)))) )
+        #   probability between 0 and fdr_extension_cutoff, the expected value
+        #   for a random peakgroup is "fdr_extension_cutoff/2") and thus the
+        #   expected random value of n peakgroups would be (fdr_extension_cutoff/2)^n
+        bestcluster = min(clusters_rt_obj, key=(lambda x: x.getTotalScore()/(((fdr_extension_cutoff/2)**len(c.peakgroups)))) )
 
         clusters_rt_obj.sort(key=lambda x: 
-                             x.getTotalScore()/((aligned_fdr_cutoff/2)**len(x.peakgroups)) )
+                             x.getTotalScore()/((fdr_extension_cutoff/2)**len(x.peakgroups)) )
 
         for i,c in enumerate(clusters_rt_obj): 
             for pg in c.peakgroups:
                 pg.setClusterID(i+1)
 
-    def _align_features_best(self, m, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, method):
+    def _align_features_best(self, m, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, method):
         """ Align features using best overall peakgroup
 
         This algorithm will find the best peakgroup over all runs and then try
@@ -220,7 +220,7 @@ class AlignmentAlgorithm():
         for p in m.getAllPeptides(): # loop over runs
             current_best_pg = p.get_best_peakgroup()
 
-            if current_best_pg.get_fdr_score() < fdr_cutoff and method == "best_overall":
+            if current_best_pg.get_fdr_score() < fdr_seeding_cutoff and method == "best_overall":
                 # The pg is below the fdr cutoff, we just take it and go with it in "best overall"
                 current_best_pg.select_this_peakgroup()
                 if verb: 
@@ -232,7 +232,7 @@ class AlignmentAlgorithm():
             # In this run, the peptide is above the FDR cutoff. We will now:
             #   - find all peakgroups that are within the retention time cutoff (continue if none are found)
             #   - of those select the peakgroup with the best score
-            #   - if the best-scoring peakgroup is acceptable (<aligned_fdr_cutoff), mark it as selected
+            #   - if the best-scoring peakgroup is acceptable (<fdr_extension_cutoff), mark it as selected
 
             matching_peakgroups = [pg_ for pg_ in p.get_all_peakgroups() 
                 if (abs(float(pg_.get_normalized_retentiontime()) - float(best_rt_diff)) < rt_diff_cutoff)]
@@ -242,7 +242,7 @@ class AlignmentAlgorithm():
 
             bestScoringPG = min(matching_peakgroups, key=lambda x: float(x.get_fdr_score()))
 
-            if bestScoringPG.get_fdr_score() < aligned_fdr_cutoff: 
+            if bestScoringPG.get_fdr_score() < fdr_extension_cutoff: 
                 bestScoringPG.select_this_peakgroup()
 
                 if current_best_pg.get_normalized_retentiontime() != bestScoringPG.get_normalized_retentiontime():
@@ -255,7 +255,7 @@ class AlignmentAlgorithm():
                       abs(float(bestScoringPG.get_normalized_retentiontime()) - float(best_rt_diff)), "best score", \
                       bestScoringPG.get_fdr_score() )
 
-    def _align_features_naive(self, m, rt_diff_cutoff, fdr_cutoff, aligned_fdr_cutoff, method):
+    def _align_features_naive(self, m, rt_diff_cutoff, fdr_seeding_cutoff, fdr_extension_cutoff, method):
         """ Naive alignment by taking always the best scoring feature (only for comparison purposes!)
         """
         if self.verbose: print("00000000000000000000000000000000000 new peptide (naive)", m.getAllPeptides()[0].get_id())
