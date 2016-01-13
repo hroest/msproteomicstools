@@ -57,6 +57,7 @@ setup(name='msproteomicstools',
           "cluster == 1.2.2", # note that 1.1.2 does not work with py3
           "pyteomics >= 2.4.0",
           "xlsxwriter >= 0.5.3 ", # for xlsx
+          "statsmodels >= 0.5.0 ", # for lowess
           # 'xlwt', # for xls
           'scikits.datasmooth',
           'pymzml',
