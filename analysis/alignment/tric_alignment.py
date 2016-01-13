@@ -558,7 +558,7 @@ def doReferenceAlignment(options, this_exp, multipeptides):
     # Performing re-alignment using a reference run
     if options.realign_method != "diRT":
         start = time.time()
-        spl_aligner = SplineAligner(alignment_fdr_threshold = options.alignment_score, 
+        spl_aligner = SplineAligner(alignment_fdr_threshold = options.rt_anchor_score, 
                                    smoother=options.realign_method,
                                    external_r_tmpdir = options.tmpdir)
         this_exp.transformation_collection = spl_aligner.rt_align_all_runs(this_exp, multipeptides)
@@ -636,7 +636,7 @@ def handle_args():
     advanced_parser.add_argument("--nr_high_conf_exp", default=1, type=int, help="Number of experiments in which the peptide needs to be identified with confidence score above 'fixed_seeding_cutoff'", metavar='1')
     advanced_parser.add_argument("--readmethod", default="minimal", help="Read full or minimal transition groups (minimal,full)", metavar="minimal")
     advanced_parser.add_argument("--tmpdir", default="/tmp/", help="Temporary directory")
-    advanced_parser.add_argument("--rt_anchor_score", dest="alignment_score", default=0.0001, type=float, help="Minimal score needed for a feature to be considered for alignment between runs", metavar='0.0001')
+    advanced_parser.add_argument("--rt_anchor_score", default=0.0001, type=float, help="Minimal score needed for a feature to be considered for alignment between runs", metavar='0.0001')
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -710,7 +710,7 @@ def main(options):
         tree_out = doMSTAlignment(this_exp, 
                        multipeptides, float(options.rt_diff_cutoff), 
                        float(options.rt_diff_isotope),
-                       float(options.alignment_score), options.fixed_seeding_cutoff,
+                       float(options.rt_anchor_score), options.fixed_seeding_cutoff,
                        float(options.fdr_extension_cutoff),
                        options.realign_method, options.tric_method,
                        options.mst_correct_rt, stdev_max_rt_per_run,
