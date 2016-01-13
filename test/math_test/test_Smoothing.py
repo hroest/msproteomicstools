@@ -75,16 +75,16 @@ class TestUnitSmoothing(unittest.TestCase):
         # and a different estimation is used here...
         r = sm._smooth_spline_scikit(self.data1, self.data2, [10.0,5.0,7,10.00001])
         self.assertEqual(len(r), 4)
-        self.assertAlmostEqual(r[0], 11.60276344181, 4)
-        self.assertAlmostEqual(r[1], 4.3279294106253, 4)
-        self.assertAlmostEqual(r[2], 7.3603529478143, 4)
-        self.assertAlmostEqual(r[3], 11.60276823628391, 4)
+        self.assertAlmostEqual(r[0], 11.60276344181, 3)
+        self.assertAlmostEqual(r[1], 4.3279294106253, 3)
+        self.assertAlmostEqual(r[2], 7.3603529478143, 3)
+        self.assertAlmostEqual(r[3], 11.60276823628391, 3)
 
         r = sm._smooth_spline_scikit(self.data1, self.data2, [10.0,5.0,7,10.0], True)
         self.assertEqual(len(r), 4)
         expected = [10.372668632871067, 4.6129201633602159, 7.738376211369804, 10.372668632871067]
         for res, exp in zip(r,expected):
-            self.assertAlmostEqual(res, exp, 4)
+            self.assertAlmostEqual(res, exp, 3)
 
     @attr('slow')
     def test_smooth_spline_scikit_wrap(self):
@@ -213,13 +213,47 @@ class TestUnitSmoothing(unittest.TestCase):
 
     def test_smooth_lowess(self):
         """Test the lowess smoothing"""
+        sm = smoothing.LowessSmoothingBiostats(smoothing_param=2/3.0)
+        sm.initialize(self.data1, self.data2)
+        r = sm.predict(self.data1)
+        self.assertEqual(len(r), 8)
+
+        expected = [ 4.20606255, 7.32448981, 8.80702199, 10.13118199, 11.48958497,
+                    14.06139604, 7.48194818, 5.7418278]
+        for a,b in zip(expected,r):
+            self.assertAlmostEqual(a, b)
+
+
         sm = smoothing.LowessSmoothingBiostats(smoothing_param=0.1)
         sm.initialize(self.data1, self.data2)
         r = sm.predict(self.data1)
         self.assertEqual(len(r), 8)
 
-        # This is slightly better than the NoCV variation
-        expected = [4.2123769729879061, 7.3305230831706876, 8.8162015867770727, 10.144542883530072, 11.507036080352814, 14.061195393451431, 7.4880128821482463, 5.7476045207327786]
+        # 
+        expected = [  4.21237697, 7.3305230, 8.81620159, 10.14454288, 11.50703608,
+                     14.06119539, 7.4880128, 5.74760452]
+        for a,b in zip(expected,r):
+            self.assertAlmostEqual(a, b, 5)
+
+    def test_smooth_lowess_stats(self):
+        """Test the lowess smoothing from statsmodels"""
+        sm = smoothing.LowessSmoothingStatsmodels(smoothing_param=2/3.0)
+        sm.initialize(self.data1, self.data2)
+        r = sm.predict(self.data1)
+        self.assertEqual(len(r), 8)
+
+        expected = [4.0003019831467874, 6.9527884923691694, 8.9968258839461299, 9.9983245324861088, 11.000315607750705, 14.007960835524095, 7.1568517652487609, 5.4893120791703023]
+
+        for a,b in zip(expected,r):
+            self.assertAlmostEqual(a, b)
+
+        sm = smoothing.LowessSmoothingStatsmodels(smoothing_param=0.1)
+        sm.initialize(self.data1, self.data2)
+        r = sm.predict(self.data1)
+        self.assertEqual(len(r), 8)
+
+        expected = [4.0, 7.0, 9.0, 11.0, 11.0, 14.0, 7.0999999999999996, 6.5]
+
         for a,b in zip(expected,r):
             self.assertAlmostEqual(a, b)
 
