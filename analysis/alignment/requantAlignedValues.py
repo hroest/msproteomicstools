@@ -773,7 +773,7 @@ def handle_args():
     parser.add_argument('--dry_run', action='store_true', default=False, help="Perform a dry run only")
     parser.add_argument('--test', dest="is_test", action='store_true', default=False, help="For running the tests (does not add a random id to the results)")
     parser.add_argument('--cache_in_memory', action='store_true', default=False, help="Cache data from a single run in memory")
-    parser.add_argument('--method', dest='method', default="reference", help="Which method to use (singleShortestPath, singleClosestRun, reference)")
+    parser.add_argument('--transfer_method', dest='method', default="reference", help="Which method to use (singleShortestPath, singleClosestRun, reference)")
     parser.add_argument('--rt_alignment', dest='realign_method', default="lowess", help="Transformation function to align runs in retention time (diRT, linear, lowess, WeightedNearestNeighbour, SmoothLLDMedian, splineR). See TRIC-README for a detailed explanation.", metavar="lowess")
 
     parser.add_argument('--verbosity', default=0, type=int, help="Verbosity")
