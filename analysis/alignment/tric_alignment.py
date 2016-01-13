@@ -445,7 +445,8 @@ class Experiment(MRExperiment):
             myYaml["FeatureAlignment"]["Parameters"]["m_score_cutoff"] = float(options.fixed_seeding_cutoff)
             myYaml["FeatureAlignment"]["Parameters"]["fdr_cutoff"] = float(options.fixed_seeding_cutoff)
             myYaml["FeatureAlignment"]["Parameters"]["fixed_seeding_cutoff"] = float(options.fixed_seeding_cutoff)
-            myYaml["FeatureAlignment"]["Parameters"]["aligned_fdr_cutoff"] = float(options.aligned_fdr_cutoff)
+            myYaml["FeatureAlignment"]["Parameters"]["aligned_fdr_cutoff"] = float(options.fdr_extension_cutoff)
+            myYaml["FeatureAlignment"]["Parameters"]["fdr_extension_cutoff"] = float(options.fdr_extension_cutoff)
             for current_run in self.runs:
                 current_id = current_run.get_id()
                 ref_id = self.transformation_collection.getReferenceRunID()
@@ -459,7 +460,7 @@ class Experiment(MRExperiment):
             open(yaml_outfile, 'w').write(yaml.dump({"AlignedSwathRuns" : myYaml}))
 
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
-                   fixed_seeding_cutoff, aligned_fdr_cutoff, smoothing_method, method,
+                   fixed_seeding_cutoff, fdr_extension_cutoff, smoothing_method, method,
                    use_RT_correction, stdev_max_rt_per_run, use_local_stdev, mst_use_ref):
     """
     Minimum Spanning Tree (MST) based local aligment 
@@ -489,7 +490,7 @@ def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_ali
     tree_mapped = [ (exp.runs[a].get_id(), exp.runs[b].get_id()) for a,b in tree]
 
     # Perform work
-    al = TreeConsensusAlignment(max_rt_diff, fixed_seeding_cutoff, aligned_fdr_cutoff, 
+    al = TreeConsensusAlignment(max_rt_diff, fixed_seeding_cutoff, fdr_extension_cutoff, 
                                 rt_diff_isotope=rt_diff_isotope,
                                 correctRT_using_pg=use_RT_correction,
                                 stdev_max_rt_per_run=stdev_max_rt_per_run,
@@ -534,20 +535,20 @@ def doParameterEstimation(options, this_exp, multipeptides):
         except UnboundLocalError:
             raise Exception("Could not estimate FDR accurately!")
 
-    options.aligned_fdr_cutoff = float(options.aligned_fdr_cutoff)
-    if options.aligned_fdr_cutoff < 0:
+    options.fdr_extension_cutoff = float(options.fdr_extension_cutoff)
+    if options.fdr_extension_cutoff < 0:
         # Estimate the aligned_fdr parameter -> if the new fdr cutoff is
         # lower than the target fdr, we can use the target fdr as aligned
         # cutoff but if its higher we have to guess (here we take
         # 2xcutoff).
         if fdr_cutoff_calculated < options.target_fdr:
-            options.aligned_fdr_cutoff = options.target_fdr
+            options.fdr_extension_cutoff = options.target_fdr
         else:
-            options.aligned_fdr_cutoff = 2*fdr_cutoff_calculated
+            options.fdr_extension_cutoff = 2*fdr_cutoff_calculated
 
     options.fixed_seeding_cutoff = fdr_cutoff_calculated
     print("Using an m_score (q-value) cutoff of %0.7f%%" % (fdr_cutoff_calculated*100))
-    print("For the aligned values, use a cutoff of %0.7f%%" % (options.aligned_fdr_cutoff*100))
+    print("For the aligned values, use a cutoff of %0.7f%%" % (options.fdr_extension_cutoff*100))
     print("Parameter estimation took %0.2fs" % (time.time() - start) )
     print("-"*35)
     return multipeptides
@@ -565,9 +566,9 @@ def doReferenceAlignment(options, this_exp, multipeptides):
         print("Aligning the runs took %0.2fs" % (time.time() - start) )
 
     try:
-        options.aligned_fdr_cutoff = float(options.aligned_fdr_cutoff)
+        options.fdr_extension_cutoff = float(options.fdr_extension_cutoff)
     except ValueError:
-        raise Exception("fdr_extension_cutoff needs to be a number, I got %s" % options.aligned_fdr_cutoff) 
+        raise Exception("fdr_extension_cutoff needs to be a number, I got %s" % options.fdr_extension_cutoff) 
 
     try:
         options.rt_diff_cutoff = float(options.rt_diff_cutoff)
@@ -584,11 +585,11 @@ def doReferenceAlignment(options, this_exp, multipeptides):
         raise Exception("fixed_rt_diff_unit either needs to be 'seconds' or 'median_stdev' or 'max'. \
                         Found instead: '%s'" % options.rt_diff_cutoff_units)
 
-    print("Will calculate with aligned_fdr cutoff of", options.aligned_fdr_cutoff, "and an RT difference of", options.rt_diff_cutoff)
+    print("Will calculate with aligned_fdr cutoff of", options.fdr_extension_cutoff, "and an RT difference of", options.rt_diff_cutoff)
     start = time.time()
     AlignmentAlgorithm().align_features(multipeptides, 
                     options.rt_diff_cutoff, options.fixed_seeding_cutoff,
-                    options.aligned_fdr_cutoff, options.method)
+                    options.fdr_extension_cutoff, options.method)
     print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
 
 def handle_args():
@@ -623,7 +624,7 @@ def handle_args():
     advanced_parser.add_argument("--matrix_output_method", dest="matrix_output_method", default='none', help="Which columns are written besides Intensity (none, RT, score, source or full)")
 
     advanced_parser.add_argument("--fixed_seeding_cutoff", dest="fixed_seeding_cutoff", default=-1.0, type=float, help="Fixed seeding score cutoff", metavar='-1')
-    advanced_parser.add_argument("--fdr_extension_cutoff", dest="aligned_fdr_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR)", metavar='-1')
+    advanced_parser.add_argument("--fdr_extension_cutoff", dest="fdr_extension_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR)", metavar='-1')
     advanced_parser.add_argument('--disable_isotopic_grouping', action='store_true', default=False, help="Disable grouping of isotopic variants by peptide_group_label")
 
     advanced_parser.add_argument("--mst:useLocalStdev", dest="mst_local_stdev", type=ast.literal_eval, default=False, help="Use standard deviation of local region of the chromatogram", metavar='False')
@@ -647,15 +648,15 @@ def handle_args():
         if args.fixed_seeding_cutoff > 0:
             raise Exception("You selected parameter estimation with target_fdr - cannot set fixed_seeding_cutoff as well! It does not make sense to ask for estimation of the fixed_seeding_cutoff (target_fdr > 0.0) and at the same time specify a certain fixed_seeding_cutoff.")
         args.fixed_seeding_cutoff = args.target_fdr
-        if float(args.aligned_fdr_cutoff) < 0:
+        if float(args.fdr_extension_cutoff) < 0:
             print("Setting fdr_extension_cutoff automatically to cutoff of", args.target_fdr)
     else:
         # Parameter estimation turned off: Check max fdr quality ...
         try:
-            if float(args.aligned_fdr_cutoff) < 0:
-                args.aligned_fdr_cutoff = args.fixed_seeding_cutoff
+            if float(args.fdr_extension_cutoff) < 0:
+                args.fdr_extension_cutoff = args.fixed_seeding_cutoff
                 print("Setting fdr_extension_cutoff automatically to fixed_seeding_cutoff of", args.fixed_seeding_cutoff)
-            elif float(args.aligned_fdr_cutoff) < args.fixed_seeding_cutoff:
+            elif float(args.fdr_extension_cutoff) < args.fixed_seeding_cutoff:
                 raise Exception("fdr_extension_cutoff cannot be smaller than fixed_seeding_cutoff!")
         except ValueError:
             pass
@@ -710,7 +711,7 @@ def main(options):
                        multipeptides, float(options.rt_diff_cutoff), 
                        float(options.rt_diff_isotope),
                        float(options.alignment_score), options.fixed_seeding_cutoff,
-                       float(options.aligned_fdr_cutoff),
+                       float(options.fdr_extension_cutoff),
                        options.realign_method, options.method,
                        options.mst_correct_rt, stdev_max_rt_per_run,
                        options.mst_local_stdev, options.mst_use_ref)
