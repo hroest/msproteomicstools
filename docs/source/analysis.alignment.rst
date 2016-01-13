@@ -62,10 +62,10 @@ Method to use to re-align retention times between pairs of runs. The following o
 * lowess: use Robust locally weighted regression (lowess smoother)
 * earth : use Multivariate Adaptive Regression Splines using py-earth
 * WeightedNearestNeighbour: the weighted RT of the nearest neighbours is used
-* SmoothLLDMedian: a local kernel of linear differences is computed 
+* MedianNearestNeighbour: a local kernel of linear differences is computed 
 
 Recommended options are CVSpline and splineR and splineR (if you have R). Both
-WeightedNearestNeighbour and SmoothLLDMedian gave acceptable results.
+WeightedNearestNeighbour and MedianNearestNeighbour gave acceptable results.
 
 
 

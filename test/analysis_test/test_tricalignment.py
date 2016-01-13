@@ -223,6 +223,7 @@ class TestTRICAlignment(unittest.TestCase):
                     filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
 
         cmd = "python %s %s" % (self.script, args)
+        print (cmd)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename, expected_outcome, header_exclude = ["align_origfilename"])

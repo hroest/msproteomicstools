@@ -606,7 +606,7 @@ def handle_args():
     parser.add_argument("--fixed_rt_diff_units", dest="rt_diff_cutoff_units", default="seconds", help="Units for RT diff (seconds, median_stdev)", metavar='seconds')
     parser.add_argument("--iso_fixed_rt_diff", dest="rt_diff_isotope", default=10, help="Maximal difference in RT for two isotopic channels in the same run", metavar='30')
     parser.add_argument('--tric_method', default='LocalMST', help="Which method to use for the confidence transfer (best_overall, global_best_overall, LocalMST). See TRIC-README for a detailed explanation.")
-    parser.add_argument('--rt_alignment', dest='realign_method', default="lowess", help="Transformation function to align runs in retention time (diRT, linear, lowess, WeightedNearestNeighbour, SmoothLLDMedian, splineR). See TRIC-README for a detailed explanation.", metavar="lowess")
+    parser.add_argument('--rt_alignment', dest='realign_method', default="MedianNearestNeighbour", help="Transformation function to align runs in retention time (diRT, linear, lowess, lowess_statsmodels, WeightedNearestNeighbour, MedianNearestNeighbour, splineR). See TRIC-README for a detailed explanation.", metavar="lowess")
     parser.add_argument("--adaptive_rtdiff_multiplier", type=float, default=3.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (MST only; if less than fixed_rt_diff, then fixed_rt_diff is used; disable with -1.0)", metavar='3.0')
 
     parser.add_argument("--target_fdr", default=0.01, type=float, help="FDR to be targeted (uses decoys to estimate seeding FDR). To disable, set to -1 and set 'fixed_seeding_cutoff' manually", metavar='0.01')

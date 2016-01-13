@@ -89,8 +89,8 @@ def getSmoothingObj(smoother, topN=5, max_rt_diff=30, min_rt_diff=0.1, removeOut
         return SmoothingEarth()
     elif smoother == "WeightedNearestNeighbour":
         return WeightedNearestNeighbour(topN, max_rt_diff, min_rt_diff, removeOutliers)
-    elif smoother == "SmoothLLDMedian":
-        return SmoothLLDMedian(topN, max_rt_diff, min_rt_diff, removeOutliers)
+    elif smoother == "SmoothLLDMedian" or smoother == "MedianNearestNeighbour":
+        return MedianNearestNeighbour(topN, max_rt_diff, min_rt_diff, removeOutliers)
     elif smoother == "None":
         return SmoothingNull()
     else:
@@ -777,7 +777,7 @@ class WeightedNearestNeighbour(LocalKernel):
 
         return res
 
-class SmoothLLDMedian(LocalKernel):
+class MedianNearestNeighbour(LocalKernel):
     """Class for local median interpolation using local linear differences
 
     This function uses the median of the k nearest neighbors to calculate the

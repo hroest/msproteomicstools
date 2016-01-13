@@ -151,7 +151,8 @@ parameter) and then compute a transformation function from the RT-space of one
 run into the RT-space of the other run.
 
 The method for pairwise alignment can be selected using ```--rt_alignment```.
-The recommended method is ```lowess``` (or the faster ```lowess_cython```) or `SmoothLLDMedian`.
+The recommended method is ```lowess``` (or the faster ```lowess_statsmodels```
+or ```lowess_cython``` when possible) or `MedianNearestNeighbour`.
 
 The very simple or linear alignment methods are:
 
@@ -161,12 +162,15 @@ The very simple or linear alignment methods are:
 
 The more complex, non-linear alignment methods are:
 
-- ```lowess``` use Robust locally weighted regression for alignment (lowess smoother)
+- ```lowess``` use robust locally weighted regression for alignment (lowess
+  smoother). The default implementation relies on Biopython which is slow,
+  please use ```lowess_statsmodels``` for faster smoothing (requires
+  statsmodels >= 0.5.0).
 - ```splinePy``` use Python native spline from scikits.datasmooth (slow!)
 - ```nonCVSpline``` compute a spline for alignment (no cross-validation) 
 - ```CVSpline``` compute a spline for alignment (using cross-validation) 
 - ```WeightedNearestNeighbour``` weighted interpolation using local linear differences of the k nearest neighbors
-- ```SmoothLLDMedian``` local median interpolation using local linear differences of the k nearest neighbors
+- ```MedianNearestNeighbour``` local median interpolation using local linear differences of the k nearest neighbors
 
 Several alignment methods require additional packages to be installed:
 

@@ -91,13 +91,12 @@ WeightedNearestNeighbour
     :show-inheritance:
 
 
-SmoothLLDMedian
+MedianNearestNeighbour
 ^^^^^^^^^^^^^^
-.. autoclass:: msproteomicstoolslib.math.Smoothing.SmoothLLDMedian
+.. autoclass:: msproteomicstoolslib.math.Smoothing.MedianNearestNeighbour
     :members:
     :undoc-members:
     :show-inheritance:
-
 
 
 
