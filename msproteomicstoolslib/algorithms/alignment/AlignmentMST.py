@@ -158,7 +158,7 @@ class TreeConsensusAlignment():
     and could lead to whole subtrees that are wrongly aligned.
     """
 
-    def __init__(self, max_rt_diff, fdr_seeding_cutoff, aligned_fdr_cutoff, rt_diff_isotope=-1,
+    def __init__(self, max_rt_diff, fdr_seeding_cutoff, fdr_extension_cutoff, rt_diff_isotope=-1,
                  correctRT_using_pg=False, stdev_max_rt_per_run=None,
                  use_local_stdev=False, verbose=False):
         """ Initialization with parameters
@@ -168,7 +168,7 @@ class TreeConsensusAlignment():
                 to look for a matching peakgroup in an adjacent run
             fdr_seeding_cutoff(float): maximal FDR that at least one peakgroup needs to
                 reach (seed FDR)
-            aligned_fdr_cutoff(float): maximal FDR that a peakgroup needs to
+            fdr_extension_cutoff(float): maximal FDR that a peakgroup needs to
                 reach to be considered for extension (extension FDR)
             correctRT_using_pg(bool): use the apex of the aligned peak group
                 as the input for the next alignment during MST traversal
@@ -180,7 +180,7 @@ class TreeConsensusAlignment():
         """
 
         self._max_rt_diff = max_rt_diff
-        self._aligned_fdr_cutoff = aligned_fdr_cutoff
+        self._fdr_extension_cutoff = fdr_extension_cutoff
         self._fdr_seeding_cutoff = fdr_seeding_cutoff
         self._correctRT_using_pg = correctRT_using_pg
         self._stdev_max_rt_per_run = stdev_max_rt_per_run
@@ -289,9 +289,9 @@ class TreeConsensusAlignment():
                 # Get best cluster by length-normalized best score.
                 #   Length normalization divides the score by the expected probability
                 #   values if all peakgroups were chosen randomly (assuming equal
-                #   probability between 0 and aligned_fdr_cutoff, the expected value
-                #   for a random peakgroup is "aligned_fdr_cutoff/2") and thus the
-                #   expected random value of n peakgroups would be (aligned_fdr_cutoff/2)^n
+                #   probability between 0 and fdr_extension_cutoff, the expected value
+                #   for a random peakgroup is "fdr_extension_cutoff/2") and thus the
+                #   expected random value of n peakgroups would be (fdr_extension_cutoff/2)^n
                 #   
                 #   Thus the normalized score is: score / exp_value
                 # 
@@ -300,8 +300,8 @@ class TreeConsensusAlignment():
                 #   which will not change the relative order of the clusters.
                 #
 
-                return math.log( x.getTotalScore() ) - len(x.peakgroups) * math.log( self._aligned_fdr_cutoff/2.0 )
-                # return x.getTotalScore()/((self._aligned_fdr_cutoff/2)**len(x.peakgroups)))
+                return math.log( x.getTotalScore() ) - len(x.peakgroups) * math.log( self._fdr_extension_cutoff/2.0 )
+                # return x.getTotalScore()/((self._fdr_extension_cutoff/2)**len(x.peakgroups)))
 
             clusters.sort(key=normalizedClusterScore)
             # bestcluster = cluster[0]
@@ -439,7 +439,7 @@ class TreeConsensusAlignment():
         # Select matching peakgroups from the target run (within the user-defined maximal rt deviation)
         matching_peakgroups = [pg_ for pg_ in target_peptide.getAllPeakgroups() 
             if (abs(float(pg_.get_normalized_retentiontime()) - float(expected_rt)) < max_rt_diff) and
-                pg_.get_fdr_score() < self._aligned_fdr_cutoff and 
+                pg_.get_fdr_score() < self._fdr_extension_cutoff and 
                 pg_.get_feature_id() + pg_.peptide.get_id() not in already_seen]
 
         # If there are no peak groups present in the target run, we simply
@@ -457,7 +457,7 @@ class TreeConsensusAlignment():
             print("    bestScoring:", bestScoringPG.print_out(), "diff", abs(bestScoringPG.get_normalized_retentiontime() - expected_rt) )
             print()
 
-        if len([pg_ for pg_ in matching_peakgroups if pg_.get_fdr_score() < self._aligned_fdr_cutoff]) > 1:
+        if len([pg_ for pg_ in matching_peakgroups if pg_.get_fdr_score() < self._fdr_extension_cutoff]) > 1:
             self.nr_multiple_align += 1
         if len([pg_ for pg_ in matching_peakgroups if pg_.get_fdr_score() < self._fdr_seeding_cutoff]) > 1:
             self.nr_ambiguous += 1

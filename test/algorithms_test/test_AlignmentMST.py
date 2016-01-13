@@ -199,7 +199,7 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         tree = MinimumSpanningTree(algo.getDistanceMatrix(self.exp, self.multipeptides, spl_aligner))
         tree_mapped = [(self.exp.runs[a].get_id(), self.exp.runs[b].get_id()) for a,b in tree]
 
-        alignment = algo.TreeConsensusAlignment(max_rt_diff = 6, fdr_seeding_cutoff = 0.1, aligned_fdr_cutoff = 0.25, correctRT_using_pg=True, verbose=True)
+        alignment = algo.TreeConsensusAlignment(max_rt_diff = 6, fdr_seeding_cutoff = 0.1, fdr_extension_cutoff = 0.25, correctRT_using_pg=True, verbose=True)
         alignment.alignBestCluster(self.multipeptides, tree_mapped, self.tr_data)
 
         # We should have 4 peakgroups
@@ -224,7 +224,7 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         tree = MinimumSpanningTree(algo.getDistanceMatrix(self.exp, self.multipeptides, spl_aligner))
         tree_mapped = [(self.exp.runs[a].get_id(), self.exp.runs[b].get_id()) for a,b in tree]
 
-        alignment = algo.TreeConsensusAlignment(max_rt_diff = 6, fdr_seeding_cutoff = 0.1, aligned_fdr_cutoff = 0.25, correctRT_using_pg=False)
+        alignment = algo.TreeConsensusAlignment(max_rt_diff = 6, fdr_seeding_cutoff = 0.1, fdr_extension_cutoff = 0.25, correctRT_using_pg=False)
         alignment.alignBestCluster(self.multipeptides, tree_mapped, self.tr_data)
 
         # Now only 2 peakgroups should be selected
@@ -254,7 +254,7 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         tree = MinimumSpanningTree(algo.getDistanceMatrix(self.exp, self.multipeptides, spl_aligner))
         tree_mapped = [(self.exp.runs[a].get_id(), self.exp.runs[b].get_id()) for a,b in tree]
 
-        alignment = algo.TreeConsensusAlignment(max_rt_diff = 15, fdr_seeding_cutoff = 0.1, aligned_fdr_cutoff = 0.25, correctRT_using_pg=False)
+        alignment = algo.TreeConsensusAlignment(max_rt_diff = 15, fdr_seeding_cutoff = 0.1, fdr_extension_cutoff = 0.25, correctRT_using_pg=False)
         alignment.alignBestCluster(self.multipeptides, tree_mapped, self.tr_data)
 
         # Now only 2 peakgroups should be selected
@@ -281,7 +281,7 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         tree = MinimumSpanningTree(algo.getDistanceMatrix(self.exp, self.multipeptides, spl_aligner))
         tree_mapped = [(self.exp.runs[a].get_id(), self.exp.runs[b].get_id()) for a,b in tree]
 
-        alignment = algo.TreeConsensusAlignment(max_rt_diff = 6, fdr_seeding_cutoff = 0.1, aligned_fdr_cutoff = 0.25, correctRT_using_pg=True, verbose=True)
+        alignment = algo.TreeConsensusAlignment(max_rt_diff = 6, fdr_seeding_cutoff = 0.1, fdr_extension_cutoff = 0.25, correctRT_using_pg=True, verbose=True)
         alignment.alignAllCluster(self.multipeptides, tree_mapped, self.tr_data)
 
         # We should have 4 peakgroups
@@ -316,7 +316,7 @@ class TestUnitAlignmentAlgo(unittest.TestCase):
         tree = MinimumSpanningTree(algo.getDistanceMatrix(self.exp, self.multipeptides, spl_aligner))
         tree_mapped = [(self.exp.runs[a].get_id(), self.exp.runs[b].get_id()) for a,b in tree]
 
-        alignment = algo.TreeConsensusAlignment(max_rt_diff = 9, fdr_seeding_cutoff = 0.2, aligned_fdr_cutoff = 0.25, correctRT_using_pg=True, verbose=True)
+        alignment = algo.TreeConsensusAlignment(max_rt_diff = 9, fdr_seeding_cutoff = 0.2, fdr_extension_cutoff = 0.25, correctRT_using_pg=True, verbose=True)
         alignment.alignAllCluster(self.multipeptides, tree_mapped, self.tr_data)
 
         # We should have 4 peakgroups selected and 7 peakgroups in clusters
