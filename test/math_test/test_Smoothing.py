@@ -213,7 +213,7 @@ class TestUnitSmoothing(unittest.TestCase):
 
     def test_smooth_lowess(self):
         """Test the lowess smoothing"""
-        sm = smoothing.LowessSmoothingBiostats()
+        sm = smoothing.LowessSmoothingBiostats(smoothing_param=0.1)
         sm.initialize(self.data1, self.data2)
         r = sm.predict(self.data1)
         self.assertEqual(len(r), 8)

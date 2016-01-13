@@ -64,12 +64,14 @@ class SplineAligner():
     >>> spl_aligner = SplineAligner()
     >>> transformations = spl_aligner.rt_align_all_runs(this_exp, multipeptides, options.alignment_score, options.use_scikit)
     """
-    def __init__(self, alignment_fdr_threshold = 0.0001, smoother="lowess", external_r_tmpdir=None, maxdata=-1):
+    def __init__(self, alignment_fdr_threshold = 0.0001, smoother="lowess", external_r_tmpdir=None, maxdata=-1, smoothing_param=0.1):
       self.transformation_collection = TransformationCollection()
       self.alignment_fdr_threshold_ = alignment_fdr_threshold
       self.smoother = smoother
       self.tmpdir_ = external_r_tmpdir
       self.max_data_ = maxdata
+      self._smoothing_param = smoothing_param
+
 
     def _determine_best_run(self, experiment):
 
@@ -154,7 +156,7 @@ class SplineAligner():
     def _spline_align_runs(self, bestrun, run, multipeptides):
         """Will align run against bestrun"""
 
-        sm = smoothing.getSmoothingObj(smoother = self.smoother, tmpdir = self.tmpdir_)
+        sm = smoothing.getSmoothingObj(smoother = self.smoother, tmpdir = self.tmpdir_, smoothing_param=self._smoothing_param)
 
         # get those peptides we want to use for alignment => for this use the mapping
         # data1 = reference data (master)

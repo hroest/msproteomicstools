@@ -485,7 +485,7 @@ def estimate_aligned_fdr_cutoff(options, this_exp, multipeptides, fdr_range):
 
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
                    fdr_cutoff, aligned_fdr_cutoff, smoothing_method, method,
-                   use_RT_correction, stdev_max_rt_per_run, use_local_stdev, mst_use_ref):
+                   use_RT_correction, stdev_max_rt_per_run, use_local_stdev, mst_use_ref, lowess_smoothing_param):
     """
     Minimum Spanning Tree (MST) based local aligment 
     """
@@ -509,7 +509,7 @@ def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_ali
     for edge in tree:
         addDataToTrafo(tr_data, exp.runs[edge[0]], exp.runs[edge[1]],
                        spl_aligner, multipeptides, smoothing_method,
-                       max_rt_diff)
+                       max_rt_diff, smoothing_param = lowess_smoothing_param)
 
     tree_mapped = [ (exp.runs[a].get_id(), exp.runs[b].get_id()) for a,b in tree]
 
@@ -584,7 +584,8 @@ def doReferenceAlignment(options, this_exp, multipeptides):
         start = time.time()
         spl_aligner = SplineAligner(alignment_fdr_threshold = options.alignment_score, 
                                    smoother=options.realign_method,
-                                   external_r_tmpdir = options.tmpdir)
+                                   external_r_tmpdir = options.tmpdir, 
+                                   smoothing_param = options.lowess_smoothing_param)
         this_exp.transformation_collection = spl_aligner.rt_align_all_runs(this_exp, multipeptides)
         trafoError = spl_aligner.getTransformationError()
         print("Aligning the runs took %0.2fs" % (time.time() - start) )
@@ -647,6 +648,7 @@ def handle_args():
 
     mst_parser = parser.add_argument_group('options for the MST')
 
+    mst_parser.add_argument("--lowess:smoothing_param", dest="lowess_smoothing_param", type=float, default=0.1, help="Lowess smoothing parameter (fraction of points used during smoothing)", metavar='0.1')
     mst_parser.add_argument("--mst:useRTCorrection", dest="mst_correct_rt", type=ast.literal_eval, default=True, help="Use aligned peakgroup RT to continue threading", metavar='True')
     mst_parser.add_argument("--mst:Stdev_multiplier", dest="mst_stdev_max_per_run", type=float, default=-1.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (if less than max_rt_diff, then max_rt_diff is used)", metavar='-1.0')
     mst_parser.add_argument("--mst:useLocalStdev", dest="mst_local_stdev", type=ast.literal_eval, default=False, help="Use local standard deviation of the  alignment", metavar='False')
@@ -745,7 +747,7 @@ def main(options):
                        float(options.aligned_fdr_cutoff),
                        options.realign_method, options.method,
                        options.mst_correct_rt, stdev_max_rt_per_run,
-                       options.mst_local_stdev, options.mst_use_ref)
+                       options.mst_local_stdev, options.mst_use_ref, options.lowess_smoothing_param)
         print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
     else:
         doReferenceAlignment(options, this_exp, multipeptides)

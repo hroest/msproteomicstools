@@ -64,7 +64,7 @@ def get_smooting_operator(use_scikit=False, use_linear=False, use_external_r = F
     print("No smoothing operator is available, please install either rpy2 or scikits with datasmooth.")
   return None
 
-def getSmoothingObj(smoother, topN=5, max_rt_diff=30, min_rt_diff=0.1, removeOutliers=False, tmpdir=None):
+def getSmoothingObj(smoother, topN=5, max_rt_diff=30, min_rt_diff=0.1, smoothing_param=None, removeOutliers=False, tmpdir=None):
     if smoother == "diRT":
         return SmoothingNull()
     elif smoother == "linear":
@@ -76,11 +76,11 @@ def getSmoothingObj(smoother, topN=5, max_rt_diff=30, min_rt_diff=0.1, removeOut
     elif smoother == "splinePy":
         return SmoothingPy()
     elif smoother == "lowess":
-        return LowessSmoothingBiostats()
+        return LowessSmoothingBiostats(smoothing_param)
     elif smoother == "lowess_statsmodels":
-        return LowessSmoothingStatsmodels()
+        return LowessSmoothingStatsmodels(smoothing_param)
     elif smoother == "lowess_cython":
-        return LowessSmoothingCyLowess()
+        return LowessSmoothingCyLowess(smoothing_param)
     elif smoother == "nonCVSpline":
         return UnivarSplineNoCV()
     elif smoother == "CVSpline":
@@ -375,8 +375,10 @@ class LowessSmoothingBase:
     """Smoothing using Lowess smoother and then interpolate on the result
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, smoothing_param):
+        self.f = smoothing_param
+        if self.f is None:
+            self.f = 0.1 # 2.0 / 3
 
     def initialize(self, data1, data2):
         result = self._initialize(data1, data2)
@@ -388,11 +390,14 @@ class LowessSmoothingBase:
         return self.internal_interpolation.predict(xhat)
 
 class LowessSmoothingBiostats(LowessSmoothingBase):
-    """Smoothing using Lowess smoother and then interpolate on the result
+    """Smoothing using lowess smoother and then interpolate on the result
+
+    The Bio.Statistics implementation is a pure Python implementation and does
+    not offer delta (for speedup) which makes it quite slow.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, smoothing_param):
+        LowessSmoothingBase.__init__(self, smoothing_param = smoothing_param)
 
     def _initialize(self, data1, data2):
         try:
@@ -404,7 +409,7 @@ class LowessSmoothingBiostats(LowessSmoothingBase):
 
         old_settings = numpy.seterr(all='ignore')
 
-        result = lowess(numpy.array(data1), numpy.array(data2), f=0.1, iter=3)
+        result = lowess(numpy.array(data1), numpy.array(data2), f=self.f, iter=3)
         if all([math.isnan(it) for it in result]):
             # Try standard paramters
             result = lowess(numpy.array(data1), numpy.array(data2))
@@ -413,7 +418,7 @@ class LowessSmoothingBiostats(LowessSmoothingBase):
         return data1, result
 
 class LowessSmoothingStatsmodels(LowessSmoothingBase):
-    """Smoothing using Lowess smoother and then interpolate on the result
+    """Smoothing using lowess smoother and then interpolate on the result
 
     statsmodels now also has fast Cython lowess, see https://github.com/statsmodels/statsmodels/pull/856
 
@@ -423,7 +428,7 @@ class LowessSmoothingStatsmodels(LowessSmoothingBase):
     """
 
     def __init__(self):
-        pass
+        LowessSmoothingBase.__init__(self, smoothing_param = smoothing_param)
 
     def _initialize(self, data1, data2):
         try:
@@ -438,15 +443,17 @@ class LowessSmoothingStatsmodels(LowessSmoothingBase):
         delta = (max(data1) - min(data1)) * 0.01
 
         # Input data is y/x -> needs switch
-        result = lowess(numpy.array(data2), numpy.array(data1), delta=delta, frac=0.1, it=10)
+        result = lowess(numpy.array(data2), numpy.array(data1), delta=delta, frac=self.f, it=10)
         return result
 
 class LowessSmoothingCyLowess(LowessSmoothingBase):
-    """Smoothing using Lowess smoother and then interpolate on the result
+    """Smoothing using lowess smoother and then interpolate on the result
+
+    Cython-based implementation from http://slendermeans.org/lowess-speed.html
     """
 
     def __init__(self):
-        pass
+        LowessSmoothingBase.__init__(self, smoothing_param = smoothing_param)
 
     def _initialize(self, data1, data2):
         try:
@@ -459,7 +466,7 @@ class LowessSmoothingCyLowess(LowessSmoothingBase):
 
         delta = (max(data1) - min(data1)) * 0.01
         # Input data is y/x -> needs switch
-        result = lowess(numpy.array(data2), numpy.array(data1), delta=delta, frac=0.1, it=10)
+        result = lowess(numpy.array(data2), numpy.array(data1), delta=delta, frac=self.f, it=10)
         return [ r[0] for r in result], [r[1] for r in result]
 
 class UnivarSplineNoCV:
