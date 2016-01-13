@@ -461,7 +461,7 @@ class Experiment(MRExperiment):
 
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
                    fixed_seeding_cutoff, fdr_extension_cutoff, smoothing_method, method,
-                   use_RT_correction, stdev_max_rt_per_run, use_local_stdev, mst_use_ref):
+                   use_RT_correction, adaptive_rtdiff_multiplier, use_local_stdev, mst_use_ref):
     """
     Minimum Spanning Tree (MST) based local aligment 
     """
@@ -493,7 +493,7 @@ def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_ali
     al = TreeConsensusAlignment(max_rt_diff, fixed_seeding_cutoff, fdr_extension_cutoff, 
                                 rt_diff_isotope=rt_diff_isotope,
                                 correctRT_using_pg=use_RT_correction,
-                                stdev_max_rt_per_run=stdev_max_rt_per_run,
+                                stdev_max_rt_per_run=adaptive_rtdiff_multiplier,
                                 use_local_stdev=use_local_stdev)
 
     if method == "LocalMST":
@@ -501,7 +501,7 @@ def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_ali
     elif method == "LocalMSTAllCluster":
         al.alignAllCluster(multipeptides, tree_mapped, tr_data)
 
-    # Store number of ambigous cases (e.g. where more than one peakgroup below
+    # Store number of ambiguous cases (e.g. where more than one peakgroup below
     # the strict quality cutoff was found in the RT window) and the number of
     # cases where multiple possibilities were found.
     exp.nr_ambiguous = al.nr_ambiguous
@@ -607,7 +607,7 @@ def handle_args():
     parser.add_argument("--iso_fixed_rt_diff", dest="rt_diff_isotope", default=10, help="Maximal difference in RT for two isotopic channels in the same run", metavar='30')
     parser.add_argument('--tric_method', default='LocalMST', help="Which method to use for the confidence transfer (best_overall, global_best_overall, LocalMST). See TRIC-README for a detailed explanation.")
     parser.add_argument('--rt_alignment', dest='realign_method', default="lowess", help="Transformation function to align runs in retention time (diRT, linear, lowess, WeightedNearestNeighbour, SmoothLLDMedian, splineR). See TRIC-README for a detailed explanation.", metavar="lowess")
-    parser.add_argument("--adaptive_rtdiff_multiplier", dest="mst_stdev_max_per_run", type=float, default=3.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (MST only; if less than fixed_rt_diff, then fixed_rt_diff is used; disable with -1.0)", metavar='3.0')
+    parser.add_argument("--adaptive_rtdiff_multiplier", type=float, default=3.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (MST only; if less than fixed_rt_diff, then fixed_rt_diff is used; disable with -1.0)", metavar='3.0')
 
     parser.add_argument("--target_fdr", default=0.01, type=float, help="FDR to be targeted (uses decoys to estimate seeding FDR). To disable, set to -1 and set 'fixed_seeding_cutoff' manually", metavar='0.01')
 
@@ -699,10 +699,10 @@ def main(options):
     tree_out = None
     if options.tric_method == "LocalMST" or options.tric_method == "LocalMSTAllCluster":
         start = time.time()
-        if options.mst_stdev_max_per_run > 0:
-            stdev_max_rt_per_run = options.mst_stdev_max_per_run
+        if options.adaptive_rtdiff_multiplier > 0:
+            adaptive_rtdiff_multiplier = options.adaptive_rtdiff_multiplier
         else:
-            stdev_max_rt_per_run = None
+            adaptive_rtdiff_multiplier = None
 
         if options.rt_diff_cutoff_units != "seconds": 
             raise Exception("fixed_rt_diff_unit needs to be 'seconds' for tree-based methods, please use 'adaptive_rtdiff_multiplier' for adaptive RT windows.")
@@ -713,7 +713,7 @@ def main(options):
                        float(options.rt_anchor_score), options.fixed_seeding_cutoff,
                        float(options.fdr_extension_cutoff),
                        options.realign_method, options.tric_method,
-                       options.mst_correct_rt, stdev_max_rt_per_run,
+                       options.mst_correct_rt, adaptive_rtdiff_multiplier,
                        options.mst_local_stdev, options.mst_use_ref)
         print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
     else:
