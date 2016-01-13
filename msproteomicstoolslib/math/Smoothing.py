@@ -427,7 +427,7 @@ class LowessSmoothingStatsmodels(LowessSmoothingBase):
     14.04 onwards, so be careful.
     """
 
-    def __init__(self):
+    def __init__(self, smoothing_param):
         LowessSmoothingBase.__init__(self, smoothing_param = smoothing_param)
 
     def _initialize(self, data1, data2):
@@ -452,7 +452,7 @@ class LowessSmoothingCyLowess(LowessSmoothingBase):
     Cython-based implementation from http://slendermeans.org/lowess-speed.html
     """
 
-    def __init__(self):
+    def __init__(self, smoothing_param):
         LowessSmoothingBase.__init__(self, smoothing_param = smoothing_param)
 
     def _initialize(self, data1, data2):
