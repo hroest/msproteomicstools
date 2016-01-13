@@ -58,7 +58,7 @@ Using the guidance tree  from above (star-shaped or MST-based),
 for each measured targeted proteomics assay, traversal of
 the global guidance tree starts with a suitable starting point, or _seed_
 identification (a identification below the ```--target_fdr``` or
-```--fdr_cutoff``` cutoff). During traversal each edge of the tree is visited
+```--fixed_seeding_cutoff``` cutoff). During traversal each edge of the tree is visited
 sequentially and a confident identification is mapped from one node
 (run $n$) to an adjacent node (run $m$), where the choice of using a
 MST-guidance tree ensures that the mapping only occurs between
@@ -192,7 +192,7 @@ This mode can be enabled by choosing `--tric_method` to be one of the following:
 If using reference-based alignment, the recommended method is
 `global_best_overall`. Note that the two `global` options will align *all*
 peakgroups according to retention time whereas the two non-`global` methods
-will keep peakgroups below the FDR cutoff ```fdr_cutoff``` in all cases. This
+will keep peakgroups below the FDR cutoff ```fixed_seeding_cutoff``` in all cases. This
 means that when using the `global` option, peakgroups below the FDR cutoff may
 be removed if they are not at the expected position in  retention time (this is
 useful to remove spurious identifications but may lead to low identification
@@ -271,7 +271,7 @@ Other parameters for the TRIC alignment are:
 - ```--rt_anchor_score``` Minimal score needed for a feature to be considered
   for alignment between runs (e.g. score needed to be considered an "anchor
   point" for pairwise alignment)
-- ```--fdr_cutoff``` A fixed m-score cutoff which does not take into account
+- ```--fixed_seeding_cutoff``` A fixed m-score cutoff which does not take into account
   the number of runs (use ```target_fdr``` instead)
 
 #<a name="requant"></a> TRIC requantification

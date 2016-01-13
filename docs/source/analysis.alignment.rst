@@ -14,7 +14,7 @@ and the for help please use ::
 
 Some of the most used options are the following
 
-fdr_cutoff
+fixed_seeding_cutoff
 """"""""""""""""""
 This is the fixed seeding score cutoff, if a precursor has an identification in one
 run with at least this score, it will be included for alignment.
@@ -28,8 +28,8 @@ will it be included in the final result.
 
 target_fdr
 """"""""""
-Experimental option for dynamic parameter estimation of the fdr_cutoff
-parameter. If you want to use this, please turn off fdr_cutoff (but
+Experimental option for dynamic parameter estimation of the fixed_seeding_cutoff
+parameter. If you want to use this, please turn off fixed_seeding_cutoff (but
 fdr_extension_cutoff still needs to be set).
 
 tric_method
@@ -46,7 +46,7 @@ Defines the method to use for the confidence transfer. Available options are
 Note that the MST options will perform a local, MST guided alignment while the
 other options will use a reference-guided alignment. The global option will
 also move peaks which are below the selected FDR threshold (while the
-best_overall and best_cluster_score will not touch any peak that is below fdr_cutoff).
+best_overall and best_cluster_score will not touch any peak that is below fixed_seeding_cutoff).
 
 rt_alignment
 """"""""""""""

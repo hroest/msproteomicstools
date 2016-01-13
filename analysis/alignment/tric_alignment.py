@@ -607,7 +607,7 @@ def handle_args():
     parser.add_argument('--rt_alignment', dest='realign_method', default="lowess", help="Transformation function to align runs in retention time (diRT, linear, lowess, WeightedNearestNeighbour, SmoothLLDMedian, splineR). See TRIC-README for a detailed explanation.", metavar="lowess")
     parser.add_argument("--adaptive_rtdiff_multiplier", dest="mst_stdev_max_per_run", type=float, default=3.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (MST only; if less than fixed_rt_diff, then fixed_rt_diff is used; disable with -1.0)", metavar='3.0')
 
-    parser.add_argument("--target_fdr", dest="target_fdr", default=0.01, type=float, help="FDR to be targeted (uses decoys to estimate seeding FDR). To disable, set to -1 and set 'fdr_cutoff' manually", metavar='0.01')
+    parser.add_argument("--target_fdr", dest="target_fdr", default=0.01, type=float, help="FDR to be targeted (uses decoys to estimate seeding FDR). To disable, set to -1 and set 'fixed_seeding_cutoff' manually", metavar='0.01')
 
     parser.add_argument("--mst:useRTCorrection", dest="mst_correct_rt", type=ast.literal_eval, default=False, help="Use aligned peakgroup RT to continue threading in MST algorithm", metavar='True')
 
@@ -621,7 +621,7 @@ def handle_args():
     advanced_parser.add_argument("--verbosity", default=0, type=int, help="Verbosity (0 = little)", metavar='0')
     advanced_parser.add_argument("--matrix_output_method", dest="matrix_output_method", default='none', help="Which columns are written besides Intensity (none, RT, score, source or full)")
 
-    advanced_parser.add_argument("--fdr_cutoff", dest="fdr_cutoff", default=-1.0, type=float, help="Fixed seeding score cutoff", metavar='-1')
+    advanced_parser.add_argument("--fixed_seeding_cutoff", dest="fdr_cutoff", default=-1.0, type=float, help="Fixed seeding score cutoff", metavar='-1')
     advanced_parser.add_argument("--fdr_extension_cutoff", dest="aligned_fdr_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR)", metavar='-1')
     advanced_parser.add_argument('--disable_isotopic_grouping', action='store_true', default=False, help="Disable grouping of isotopic variants by peptide_group_label")
 
@@ -631,7 +631,7 @@ def handle_args():
     advanced_parser.add_argument("--frac_selected", dest="min_frac_selected", default=0.0, type=float, help="Do not write peakgroup if selected in less than this fraction of runs (range 0 to 1)", metavar='0.0')
     advanced_parser.add_argument('--use_dscore_filter', action='store_true', default=False, help="Turn on d-score filter (default is off)")
     advanced_parser.add_argument("--dscore_cutoff", default=1.96, type=float, help="Discard features below this d-score", metavar='1.96')
-    advanced_parser.add_argument("--nr_high_conf_exp", default=1, type=int, help="Number of experiments in which the peptide needs to be identified with confidence score above 'fdr_cutoff'", metavar='1')
+    advanced_parser.add_argument("--nr_high_conf_exp", default=1, type=int, help="Number of experiments in which the peptide needs to be identified with confidence score above 'fixed_seeding_cutoff'", metavar='1')
     advanced_parser.add_argument("--readmethod", dest="readmethod", default="minimal", help="Read full or minimal transition groups (minimal,full)", metavar="minimal")
     advanced_parser.add_argument("--tmpdir", dest="tmpdir", default="/tmp/", help="Temporary directory")
     advanced_parser.add_argument("--rt_anchor_score", dest="alignment_score", default=0.0001, type=float, help="Minimal score needed for a feature to be considered for alignment between runs", metavar='0.0001')
@@ -644,7 +644,7 @@ def handle_args():
     if args.target_fdr > 0:
         # Parameter estimation turned on: check user input ...
         if args.fdr_cutoff > 0:
-            raise Exception("You selected parameter estimation with target_fdr - cannot set fdr_cutoff as well! It does not make sense to ask for estimation of the fdr_cutoff (target_fdr > 0.0) and at the same time specify a certain fdr_cutoff.")
+            raise Exception("You selected parameter estimation with target_fdr - cannot set fixed_seeding_cutoff as well! It does not make sense to ask for estimation of the fixed_seeding_cutoff (target_fdr > 0.0) and at the same time specify a certain fixed_seeding_cutoff.")
         args.fdr_cutoff = args.target_fdr
         if float(args.aligned_fdr_cutoff) < 0:
             print("Setting fdr_extension_cutoff automatically to cutoff of", args.target_fdr)
@@ -653,9 +653,9 @@ def handle_args():
         try:
             if float(args.aligned_fdr_cutoff) < 0:
                 args.aligned_fdr_cutoff = args.fdr_cutoff
-                print("Setting fdr_extension_cutoff automatically to fdr_cutoff of", args.fdr_cutoff)
+                print("Setting fdr_extension_cutoff automatically to fixed_seeding_cutoff of", args.fdr_cutoff)
             elif float(args.aligned_fdr_cutoff) < args.fdr_cutoff:
-                raise Exception("fdr_extension_cutoff cannot be smaller than fdr_cutoff!")
+                raise Exception("fdr_extension_cutoff cannot be smaller than fixed_seeding_cutoff!")
         except ValueError:
             pass
     return args

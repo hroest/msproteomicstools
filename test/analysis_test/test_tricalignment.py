@@ -178,7 +178,7 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename_matrix = "featureAlignment_5.out.tmp_matrix.tsv"
 
         args = "--in %s --out %s --out_matrix %s --file_format peakview  \
-                --fdr_extension_cutoff 0.0001 --fdr_cutoff 0.000000001 --target_fdr -1 --rt_alignment diRT \
+                --fdr_extension_cutoff 0.0001 --fixed_seeding_cutoff 0.000000001 --target_fdr -1 --rt_alignment diRT \
                 --tric_method best_cluster_score --matrix_output_method RT" % (filename, tmpfilename, tmpfilename_matrix)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
