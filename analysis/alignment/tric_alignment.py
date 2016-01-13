@@ -71,7 +71,7 @@ class AlignmentStatistics(object):
         self.quant_peptides = set([])
         self.quant_proteins = set([])
 
-    def count(self, multipeptides, fdr_cutoff, runs, skipDecoy=True):
+    def count(self, multipeptides, fixed_seeding_cutoff, runs, skipDecoy=True):
 
 
         astats = self
@@ -84,7 +84,7 @@ class AlignmentStatistics(object):
             astats.nr_quantified += len(m.get_selected_peakgroups())
 
             # Count how many precursors / peptides / proteins fall below the threshold
-            if m.find_best_peptide_pg().get_fdr_score() < fdr_cutoff:
+            if m.find_best_peptide_pg().get_fdr_score() < fixed_seeding_cutoff:
                 astats.nr_good_precursors += 1
                 astats.good_peptides.update([m.getAllPeptides()[0].sequence])
                 astats.good_proteins.update([m.getAllPeptides()[0].protein_name])
@@ -98,22 +98,22 @@ class AlignmentStatistics(object):
             for p in m.getAllPeptides():
 
                 # Count how many peakgroups simply fall below the threshold
-                if p.get_best_peakgroup().get_fdr_score() < fdr_cutoff:
+                if p.get_best_peakgroup().get_fdr_score() < fixed_seeding_cutoff:
                     astats.nr_good_peakgroups += 1
 
                 if p.get_selected_peakgroup() is not None:
 
                     # Number of peakgroups that are different from the original
                     if p.get_best_peakgroup().get_feature_id() != p.get_selected_peakgroup().get_feature_id() \
-                       and p.get_selected_peakgroup().get_fdr_score() < fdr_cutoff:
+                       and p.get_selected_peakgroup().get_fdr_score() < fixed_seeding_cutoff:
                         astats.nr_changed += 1
                     # Number of peakgroups that were added
-                    if p.get_best_peakgroup().get_fdr_score() > fdr_cutoff:
+                    if p.get_best_peakgroup().get_fdr_score() > fixed_seeding_cutoff:
                         astats.nr_aligned += 1
 
                 # Best peakgroup exists and is not selected
                 elif p.get_best_peakgroup() is not None \
-                  and p.get_best_peakgroup().get_fdr_score() < fdr_cutoff:
+                  and p.get_best_peakgroup().get_fdr_score() < fixed_seeding_cutoff:
                     astats.nr_removed += 1
 
         self.max_pg = self.nr_good_precursors * len(runs)
@@ -181,10 +181,10 @@ class Experiment(MRExperiment):
                           if prec.find_best_peptide_pg().peptide.get_decoy()])
         d.nr_targets = sum([len(prec.get_selected_peakgroups()) for prec in precursors_to_be_used
                           if not prec.find_best_peptide_pg().peptide.get_decoy()])
-        # estimate the real fdr by calculating the decoy ratio and dividing it
-        # by the decoy ration obtained at @fdr_cutoff => which gives us the
-        # decoy in/decrease realtive to fdr_cutoff. To calculate the absolute
-        # value, we multiply by fdr_cutoff again (which was used to obtain the
+        # estimate the real FDR by calculating the decoy ratio and dividing it
+        # by the decoy ration obtained at @fixed_seeding_cutoff => which gives us the
+        # decoy in/decrease relative to fixed_seeding_cutoff. To calculate the absolute
+        # value, we multiply by fixed_seeding_cutoff again (which was used to obtain the
         # original estimated decoy percentage).
         if self.estimated_decoy_pcnt is None: return d
         if (d.nr_targets + d.nr_decoys) == 0: return d
@@ -192,18 +192,18 @@ class Experiment(MRExperiment):
         d.est_real_fdr = d.decoy_pcnt / self.estimated_decoy_pcnt * self.initial_fdr_cutoff
         return d
 
-    def print_stats(self, multipeptides, fdr_cutoff, fraction_present, min_nrruns):
+    def print_stats(self, multipeptides, fixed_seeding_cutoff, fraction_present, min_nrruns):
 
         alignment = AlignmentStatistics()
-        alignment.count(multipeptides, fdr_cutoff, self.runs)
+        alignment.count(multipeptides, fixed_seeding_cutoff, self.runs)
 
         # Count presence in all runs (before alignment)
-        precursors_in_all_runs_wo_align = len([1 for m in multipeptides if m.all_above_cutoff(fdr_cutoff) and not m.get_decoy()])
+        precursors_in_all_runs_wo_align = len([1 for m in multipeptides if m.all_above_cutoff(fixed_seeding_cutoff) and not m.get_decoy()])
         proteins_in_all_runs_wo_align_target = len(set([m.find_best_peptide_pg().peptide.protein_name for m in multipeptides 
-                                                        if m.all_above_cutoff(fdr_cutoff) and 
+                                                        if m.all_above_cutoff(fixed_seeding_cutoff) and 
                                                         not m.find_best_peptide_pg().peptide.get_decoy()]))
         peptides_in_all_runs_wo_align_target = len(set([m.find_best_peptide_pg().peptide.sequence for m in multipeptides 
-                                                        if m.all_above_cutoff(fdr_cutoff) and 
+                                                        if m.all_above_cutoff(fixed_seeding_cutoff) and 
                                                         not m.find_best_peptide_pg().peptide.get_decoy()]))
 
         # Count presence in all runs (before alignment)
@@ -244,7 +244,7 @@ class Experiment(MRExperiment):
         print("="*75)
         print("="*75)
         print("Total we have", len(self.runs), "runs with", alignment.nr_good_precursors,
-              "peakgroups quantified in at least %s run(s) below m_score (q-value) %0.4f %%" % (min_nrruns, fdr_cutoff*100) + ", " +
+              "peakgroups quantified in at least %s run(s) below m_score (q-value) %0.4f %%" % (min_nrruns, fixed_seeding_cutoff*100) + ", " +
               "giving maximally nr peakgroups", max_pg)
         print("We were able to quantify", alignment.nr_quantified, "/", max_pg, "peakgroups of which we aligned",
               alignment.nr_aligned)
@@ -333,7 +333,7 @@ class Experiment(MRExperiment):
             write_out_matrix_file(matrix_outfile, self.runs, multipeptides,
                                   fraction_needed_selected,
                                   style=options.matrix_output_method,
-                                  aligner_mscore_treshold=options.fdr_cutoff)
+                                  aligner_mscore_treshold=options.fixed_seeding_cutoff)
 
         # 4. Write out the full outfile
         if len(outfile) > 0 and options.readmethod == "full":
@@ -441,9 +441,10 @@ class Experiment(MRExperiment):
                 myYaml["Output"]["Tree"]["MappedFileInput"] = tree_mapped
 
             myYaml["Output"]["Quantification"] = alignment.to_yaml()
-            myYaml["Parameters"]["m_score_cutoff"] = float(options.fdr_cutoff) # deprecated
-            myYaml["FeatureAlignment"]["Parameters"]["m_score_cutoff"] = float(options.fdr_cutoff)
-            myYaml["FeatureAlignment"]["Parameters"]["fdr_cutoff"] = float(options.fdr_cutoff)
+            myYaml["Parameters"]["m_score_cutoff"] = float(options.fixed_seeding_cutoff) # deprecated
+            myYaml["FeatureAlignment"]["Parameters"]["m_score_cutoff"] = float(options.fixed_seeding_cutoff)
+            myYaml["FeatureAlignment"]["Parameters"]["fdr_cutoff"] = float(options.fixed_seeding_cutoff)
+            myYaml["FeatureAlignment"]["Parameters"]["fixed_seeding_cutoff"] = float(options.fixed_seeding_cutoff)
             myYaml["FeatureAlignment"]["Parameters"]["aligned_fdr_cutoff"] = float(options.aligned_fdr_cutoff)
             for current_run in self.runs:
                 current_id = current_run.get_id()
@@ -458,7 +459,7 @@ class Experiment(MRExperiment):
             open(yaml_outfile, 'w').write(yaml.dump({"AlignedSwathRuns" : myYaml}))
 
 def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_alignment_cutoff,
-                   fdr_cutoff, aligned_fdr_cutoff, smoothing_method, method,
+                   fixed_seeding_cutoff, aligned_fdr_cutoff, smoothing_method, method,
                    use_RT_correction, stdev_max_rt_per_run, use_local_stdev, mst_use_ref):
     """
     Minimum Spanning Tree (MST) based local aligment 
@@ -488,7 +489,7 @@ def doMSTAlignment(exp, multipeptides, max_rt_diff, rt_diff_isotope, initial_ali
     tree_mapped = [ (exp.runs[a].get_id(), exp.runs[b].get_id()) for a,b in tree]
 
     # Perform work
-    al = TreeConsensusAlignment(max_rt_diff, fdr_cutoff, aligned_fdr_cutoff, 
+    al = TreeConsensusAlignment(max_rt_diff, fixed_seeding_cutoff, aligned_fdr_cutoff, 
                                 rt_diff_isotope=rt_diff_isotope,
                                 correctRT_using_pg=use_RT_correction,
                                 stdev_max_rt_per_run=stdev_max_rt_per_run,
@@ -544,7 +545,7 @@ def doParameterEstimation(options, this_exp, multipeptides):
         else:
             options.aligned_fdr_cutoff = 2*fdr_cutoff_calculated
 
-    options.fdr_cutoff = fdr_cutoff_calculated
+    options.fixed_seeding_cutoff = fdr_cutoff_calculated
     print("Using an m_score (q-value) cutoff of %0.7f%%" % (fdr_cutoff_calculated*100))
     print("For the aligned values, use a cutoff of %0.7f%%" % (options.aligned_fdr_cutoff*100))
     print("Parameter estimation took %0.2fs" % (time.time() - start) )
@@ -586,7 +587,7 @@ def doReferenceAlignment(options, this_exp, multipeptides):
     print("Will calculate with aligned_fdr cutoff of", options.aligned_fdr_cutoff, "and an RT difference of", options.rt_diff_cutoff)
     start = time.time()
     AlignmentAlgorithm().align_features(multipeptides, 
-                    options.rt_diff_cutoff, options.fdr_cutoff,
+                    options.rt_diff_cutoff, options.fixed_seeding_cutoff,
                     options.aligned_fdr_cutoff, options.method)
     print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
 
@@ -621,7 +622,7 @@ def handle_args():
     advanced_parser.add_argument("--verbosity", default=0, type=int, help="Verbosity (0 = little)", metavar='0')
     advanced_parser.add_argument("--matrix_output_method", dest="matrix_output_method", default='none', help="Which columns are written besides Intensity (none, RT, score, source or full)")
 
-    advanced_parser.add_argument("--fixed_seeding_cutoff", dest="fdr_cutoff", default=-1.0, type=float, help="Fixed seeding score cutoff", metavar='-1')
+    advanced_parser.add_argument("--fixed_seeding_cutoff", dest="fixed_seeding_cutoff", default=-1.0, type=float, help="Fixed seeding score cutoff", metavar='-1')
     advanced_parser.add_argument("--fdr_extension_cutoff", dest="aligned_fdr_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR)", metavar='-1')
     advanced_parser.add_argument('--disable_isotopic_grouping', action='store_true', default=False, help="Disable grouping of isotopic variants by peptide_group_label")
 
@@ -643,18 +644,18 @@ def handle_args():
 
     if args.target_fdr > 0:
         # Parameter estimation turned on: check user input ...
-        if args.fdr_cutoff > 0:
+        if args.fixed_seeding_cutoff > 0:
             raise Exception("You selected parameter estimation with target_fdr - cannot set fixed_seeding_cutoff as well! It does not make sense to ask for estimation of the fixed_seeding_cutoff (target_fdr > 0.0) and at the same time specify a certain fixed_seeding_cutoff.")
-        args.fdr_cutoff = args.target_fdr
+        args.fixed_seeding_cutoff = args.target_fdr
         if float(args.aligned_fdr_cutoff) < 0:
             print("Setting fdr_extension_cutoff automatically to cutoff of", args.target_fdr)
     else:
         # Parameter estimation turned off: Check max fdr quality ...
         try:
             if float(args.aligned_fdr_cutoff) < 0:
-                args.aligned_fdr_cutoff = args.fdr_cutoff
-                print("Setting fdr_extension_cutoff automatically to fixed_seeding_cutoff of", args.fdr_cutoff)
-            elif float(args.aligned_fdr_cutoff) < args.fdr_cutoff:
+                args.aligned_fdr_cutoff = args.fixed_seeding_cutoff
+                print("Setting fdr_extension_cutoff automatically to fixed_seeding_cutoff of", args.fixed_seeding_cutoff)
+            elif float(args.aligned_fdr_cutoff) < args.fixed_seeding_cutoff:
                 raise Exception("fdr_extension_cutoff cannot be smaller than fixed_seeding_cutoff!")
         except ValueError:
             pass
@@ -688,7 +689,7 @@ def main(options):
     # Map the precursors across multiple runs, determine the number of
     # precursors in all runs without alignment.
     start = time.time()
-    multipeptides = this_exp.get_all_multipeptides(options.fdr_cutoff, verbose=False, verbosity=options.verbosity)
+    multipeptides = this_exp.get_all_multipeptides(options.fixed_seeding_cutoff, verbose=False, verbosity=options.verbosity)
     print("Mapping the precursors took %0.2fs" % (time.time() - start) )
 
     if options.target_fdr > 0:
@@ -708,7 +709,7 @@ def main(options):
         tree_out = doMSTAlignment(this_exp, 
                        multipeptides, float(options.rt_diff_cutoff), 
                        float(options.rt_diff_isotope),
-                       float(options.alignment_score), options.fdr_cutoff,
+                       float(options.alignment_score), options.fixed_seeding_cutoff,
                        float(options.aligned_fdr_cutoff),
                        options.realign_method, options.method,
                        options.mst_correct_rt, stdev_max_rt_per_run,
@@ -722,7 +723,7 @@ def main(options):
         # check if we have found enough peakgroups which are below the cutoff
         count = 0
         for pg in mpep.get_selected_peakgroups():
-            if pg.get_fdr_score() < options.fdr_cutoff:
+            if pg.get_fdr_score() < options.fixed_seeding_cutoff:
                 count += 1
         if count < options.nr_high_conf_exp:
             for p in mpep.getAllPeptides():
@@ -730,7 +731,7 @@ def main(options):
 
     # print statistics, write output
     start = time.time()
-    al = this_exp.print_stats(multipeptides, options.fdr_cutoff, options.min_frac_selected, options.nr_high_conf_exp)
+    al = this_exp.print_stats(multipeptides, options.fixed_seeding_cutoff, options.min_frac_selected, options.nr_high_conf_exp)
     this_exp.write_to_file(multipeptides, options, alignment=al, tree=tree_out)
     print("Writing output took %0.2fs" % (time.time() - start) )
 
