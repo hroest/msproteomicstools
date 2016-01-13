@@ -448,7 +448,7 @@ class LowessSmoothingStatsmodels(LowessSmoothingBase):
 
         # Input data is y/x -> needs switch
         result = lowess(numpy.array(data2), numpy.array(data1), delta=delta, frac=self.f, it=10)
-        return result
+        return [ r[0] for r in result], [r[1] for r in result]
 
 class LowessSmoothingCyLowess(LowessSmoothingBase):
     """Smoothing using lowess smoother and then interpolate on the result
