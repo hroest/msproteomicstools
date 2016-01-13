@@ -32,8 +32,8 @@ Experimental option for dynamic parameter estimation of the fdr_cutoff
 parameter. If you want to use this, please turn off fdr_cutoff (but
 fdr_extension_cutoff still needs to be set).
 
-method
-""""""
+tric_method
+"""""""""""
 Defines the method to use for the confidence transfer. Available options are 
 
 * best_overall
@@ -51,7 +51,6 @@ best_overall and best_cluster_score will not touch any peak that is below fdr_cu
 rt_alignment
 """"""""""""""
 Method to use to re-align retention times between pairs of runs. The following options are available:
-
 
 * None: use the raw RT from the file (not recommended) 
 * diRT: use only deltaiRT from the input file
