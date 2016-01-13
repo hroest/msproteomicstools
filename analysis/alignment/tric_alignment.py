@@ -589,7 +589,7 @@ def doReferenceAlignment(options, this_exp, multipeptides):
     start = time.time()
     AlignmentAlgorithm().align_features(multipeptides, 
                     options.rt_diff_cutoff, options.fixed_seeding_cutoff,
-                    options.fdr_extension_cutoff, options.method)
+                    options.fdr_extension_cutoff, options.tric_method)
     print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
 
 def handle_args():
@@ -605,11 +605,11 @@ def handle_args():
     parser.add_argument("--fixed_rt_diff", dest="rt_diff_cutoff", default=30, help="Maximal difference in RT for two aligned features", metavar='30')
     parser.add_argument("--fixed_rt_diff_units", dest="rt_diff_cutoff_units", default="seconds", help="Units for RT diff (seconds, median_stdev)", metavar='seconds')
     parser.add_argument("--iso_fixed_rt_diff", dest="rt_diff_isotope", default=10, help="Maximal difference in RT for two isotopic channels in the same run", metavar='30')
-    parser.add_argument('--tric_method', dest="method", default='LocalMST', help="Which method to use for the confidence transfer (best_overall, global_best_overall, LocalMST). See TRIC-README for a detailed explanation.")
+    parser.add_argument('--tric_method', default='LocalMST', help="Which method to use for the confidence transfer (best_overall, global_best_overall, LocalMST). See TRIC-README for a detailed explanation.")
     parser.add_argument('--rt_alignment', dest='realign_method', default="lowess", help="Transformation function to align runs in retention time (diRT, linear, lowess, WeightedNearestNeighbour, SmoothLLDMedian, splineR). See TRIC-README for a detailed explanation.", metavar="lowess")
     parser.add_argument("--adaptive_rtdiff_multiplier", dest="mst_stdev_max_per_run", type=float, default=3.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (MST only; if less than fixed_rt_diff, then fixed_rt_diff is used; disable with -1.0)", metavar='3.0')
 
-    parser.add_argument("--target_fdr", dest="target_fdr", default=0.01, type=float, help="FDR to be targeted (uses decoys to estimate seeding FDR). To disable, set to -1 and set 'fixed_seeding_cutoff' manually", metavar='0.01')
+    parser.add_argument("--target_fdr", default=0.01, type=float, help="FDR to be targeted (uses decoys to estimate seeding FDR). To disable, set to -1 and set 'fixed_seeding_cutoff' manually", metavar='0.01')
 
     parser.add_argument("--mst:useRTCorrection", dest="mst_correct_rt", type=ast.literal_eval, default=False, help="Use aligned peakgroup RT to continue threading in MST algorithm", metavar='True')
 
@@ -621,10 +621,10 @@ def handle_args():
     advanced_parser.add_argument("--out_ids", dest="ids_outfile", default="", help="Id file only containing the ids", metavar="OUTFILE")
     advanced_parser.add_argument("--out_meta", dest="yaml_outfile", default="", help="Output file in YAML format containing meta information", metavar="OUTFILE")
     advanced_parser.add_argument("--verbosity", default=0, type=int, help="Verbosity (0 = little)", metavar='0')
-    advanced_parser.add_argument("--matrix_output_method", dest="matrix_output_method", default='none', help="Which columns are written besides Intensity (none, RT, score, source or full)")
+    advanced_parser.add_argument("--matrix_output_method", default='none', help="Which columns are written besides Intensity (none, RT, score, source or full)")
 
-    advanced_parser.add_argument("--fixed_seeding_cutoff", dest="fixed_seeding_cutoff", default=-1.0, type=float, help="Fixed seeding score cutoff", metavar='-1')
-    advanced_parser.add_argument("--fdr_extension_cutoff", dest="fdr_extension_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR)", metavar='-1')
+    advanced_parser.add_argument("--fixed_seeding_cutoff", default=-1.0, type=float, help="Fixed seeding score cutoff", metavar='-1')
+    advanced_parser.add_argument("--fdr_extension_cutoff", default=-1.0, help="Extension score cutoff - during the extension phase of the algorithm, peakgroups of this quality will still be considered for alignment (in FDR)", metavar='-1')
     advanced_parser.add_argument('--disable_isotopic_grouping', action='store_true', default=False, help="Disable grouping of isotopic variants by peptide_group_label")
 
     advanced_parser.add_argument("--mst:useLocalStdev", dest="mst_local_stdev", type=ast.literal_eval, default=False, help="Use standard deviation of local region of the chromatogram", metavar='False')
@@ -634,8 +634,8 @@ def handle_args():
     advanced_parser.add_argument('--use_dscore_filter', action='store_true', default=False, help="Turn on d-score filter (default is off)")
     advanced_parser.add_argument("--dscore_cutoff", default=1.96, type=float, help="Discard features below this d-score", metavar='1.96')
     advanced_parser.add_argument("--nr_high_conf_exp", default=1, type=int, help="Number of experiments in which the peptide needs to be identified with confidence score above 'fixed_seeding_cutoff'", metavar='1')
-    advanced_parser.add_argument("--readmethod", dest="readmethod", default="minimal", help="Read full or minimal transition groups (minimal,full)", metavar="minimal")
-    advanced_parser.add_argument("--tmpdir", dest="tmpdir", default="/tmp/", help="Temporary directory")
+    advanced_parser.add_argument("--readmethod", default="minimal", help="Read full or minimal transition groups (minimal,full)", metavar="minimal")
+    advanced_parser.add_argument("--tmpdir", default="/tmp/", help="Temporary directory")
     advanced_parser.add_argument("--rt_anchor_score", dest="alignment_score", default=0.0001, type=float, help="Minimal score needed for a feature to be considered for alignment between runs", metavar='0.0001')
 
     args = parser.parse_args(sys.argv[1:])
@@ -697,7 +697,7 @@ def main(options):
         multipeptides = doParameterEstimation(options, this_exp, multipeptides)
 
     tree_out = None
-    if options.method == "LocalMST" or options.method == "LocalMSTAllCluster":
+    if options.tric_method == "LocalMST" or options.tric_method == "LocalMSTAllCluster":
         start = time.time()
         if options.mst_stdev_max_per_run > 0:
             stdev_max_rt_per_run = options.mst_stdev_max_per_run
@@ -712,7 +712,7 @@ def main(options):
                        float(options.rt_diff_isotope),
                        float(options.alignment_score), options.fixed_seeding_cutoff,
                        float(options.fdr_extension_cutoff),
-                       options.realign_method, options.method,
+                       options.realign_method, options.tric_method,
                        options.mst_correct_rt, stdev_max_rt_per_run,
                        options.mst_local_stdev, options.mst_use_ref)
         print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
