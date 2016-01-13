@@ -148,7 +148,7 @@ class TreeConsensusAlignment():
     consistent cluster across multiple runs. This process can be repeated with
     the next best peakgroup that is not yet part of a cluster (e.g. ``pg1_2``)
     until no more peakgroups are left (no more peakgroups having a score below
-    fdr_cutoff).
+    fdr_seeding_cutoff).
 
     Note how the algorithm only used binary alignments and purely local
     alignments of the runs that are most close to each other. This stands in
@@ -158,7 +158,7 @@ class TreeConsensusAlignment():
     and could lead to whole subtrees that are wrongly aligned.
     """
 
-    def __init__(self, max_rt_diff, fdr_cutoff, aligned_fdr_cutoff, rt_diff_isotope=-1,
+    def __init__(self, max_rt_diff, fdr_seeding_cutoff, aligned_fdr_cutoff, rt_diff_isotope=-1,
                  correctRT_using_pg=False, stdev_max_rt_per_run=None,
                  use_local_stdev=False, verbose=False):
         """ Initialization with parameters
@@ -166,7 +166,7 @@ class TreeConsensusAlignment():
         Args:
             max_rt_diff(float): maximal difference in retention time to be used
                 to look for a matching peakgroup in an adjacent run
-            fdr_cutoff(float): maximal FDR that at least one peakgroup needs to
+            fdr_seeding_cutoff(float): maximal FDR that at least one peakgroup needs to
                 reach (seed FDR)
             aligned_fdr_cutoff(float): maximal FDR that a peakgroup needs to
                 reach to be considered for extension (extension FDR)
@@ -181,7 +181,7 @@ class TreeConsensusAlignment():
 
         self._max_rt_diff = max_rt_diff
         self._aligned_fdr_cutoff = aligned_fdr_cutoff
-        self._fdr_cutoff = fdr_cutoff
+        self._fdr_seeding_cutoff = fdr_seeding_cutoff
         self._correctRT_using_pg = correctRT_using_pg
         self._stdev_max_rt_per_run = stdev_max_rt_per_run
         self._use_local_stdev = use_local_stdev
@@ -190,7 +190,7 @@ class TreeConsensusAlignment():
 
         # Number of multiple possible alignments calls (more than one possibility)
         self.nr_multiple_align = 0
-        # Number of likely FP (multiple possibilities below fdr_cutoff)
+        # Number of likely FP (multiple possibilities below fdr_seeding_cutoff)
         self.nr_ambiguous = 0
 
     def alignBestCluster(self, multipeptides, tree, tr_data):
@@ -221,7 +221,7 @@ class TreeConsensusAlignment():
             # Find the overall best peptide
             best = m.find_best_peptide_pg()
 
-            if best.get_fdr_score() >= self._fdr_cutoff:
+            if best.get_fdr_score() >= self._fdr_seeding_cutoff:
                 continue
 
             # Use this peptide to generate a cluster
@@ -237,7 +237,7 @@ class TreeConsensusAlignment():
         window) to the result. After traversing all nodes, a new seed can be chosen
         among the peakgroups not yet belonging to a cluster and the process can be
         repeated to produce multiple clusters.  It will add clusters until no
-        more peptides with an fdr score better than self._fdr_cutoff are left.
+        more peptides with an fdr score better than self._fdr_seeding_cutoff are left.
 
         Args:
             multipeptides(list(Multipeptide)): a list of
@@ -265,7 +265,7 @@ class TreeConsensusAlignment():
             already_seen = set([])
             stillLeft = [b for a in m.getPrecursorGroups() for b in a.getAllPeakgroups() 
                          if b.get_feature_id() + b.peptide.get_id() not in already_seen 
-                         and b.get_fdr_score() < self._fdr_cutoff]
+                         and b.get_fdr_score() < self._fdr_seeding_cutoff]
             clusters = []
             while len(stillLeft) > 0:
                 best = min(stillLeft, key=lambda x: float(x.get_fdr_score()))
@@ -278,7 +278,7 @@ class TreeConsensusAlignment():
                                           for b in last_cluster if b is not None]) )
                 stillLeft = [b for a in m.getPrecursorGroups() for b in a.getAllPeakgroups() 
                              if b.get_feature_id() + b.peptide.get_id() not in already_seen 
-                             and b.get_fdr_score() < self._fdr_cutoff]
+                             and b.get_fdr_score() < self._fdr_seeding_cutoff]
                 clusters.append(Cluster(last_cluster))
 
             # select the first cluster => same behavior as alignBestCluster
@@ -459,7 +459,7 @@ class TreeConsensusAlignment():
 
         if len([pg_ for pg_ in matching_peakgroups if pg_.get_fdr_score() < self._aligned_fdr_cutoff]) > 1:
             self.nr_multiple_align += 1
-        if len([pg_ for pg_ in matching_peakgroups if pg_.get_fdr_score() < self._fdr_cutoff]) > 1:
+        if len([pg_ for pg_ in matching_peakgroups if pg_.get_fdr_score() < self._fdr_seeding_cutoff]) > 1:
             self.nr_ambiguous += 1
 
         # Decide which retention time to return:
