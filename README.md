@@ -34,20 +34,21 @@ functions useful for MS-based proteomics.
 
 # Install
 
-After installing the dependencies, you can proceed to install msproteomicstools itself:
+On most systems, you can install msproteomicstools by typing:
 
     pip install numpy
     pip install msproteomicstools
 
-If you are on windows, there is a chance the above will not work as Biopython
+If you are on Microsoft Windows, there is a chance the above will not work as Biopython
 and numpy need to be compiled from source. Currently, the way to get these is
 by installing [Anaconda](https://www.continuum.io/downloads) and then running
 in the Anaconda prompt:
 
     conda install biopython
+    conda install statsmodels
     pip install msproteomicstools
 
-Alternatively, you can also install from source:
+Alternatively, you can also install the most recent version from source:
 
     git checkout https://github.com/msproteomicstools/msproteomicstools.git
     pip install numpy
