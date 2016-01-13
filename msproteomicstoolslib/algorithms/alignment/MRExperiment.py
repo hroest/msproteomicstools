@@ -47,7 +47,7 @@ class MRExperiment(object):
     """
     An MR (multirun) Experiment is a container for multiple experimental runs.
 
-    In some of the runs the same peptidde precursors may be identified and the
+    In some of the runs the same peptide precursors may be identified and the
     job of this object is to keep track of these experiments and the identified
     precursors across multiple runs.
 
@@ -77,14 +77,14 @@ class MRExperiment(object):
     def get_all_multipeptides(self, fdr_cutoff, verbose=False, verbosity=0):
         """Match all precursors in different runs to each other.
 
-        Find all precursors that are above the fdr cutoff in each run and build
+        Find all precursors that are above the FDR cutoff in each run and build
         a union of those precursors. Then search for each of those precursors
         in all the other runs and build a multipeptide / multiprecursor.
 
         Parameters
         ----------
         fdr_cutoff : float
-            A cutoff in fdr (between 0 and 1) to use for the alignment. Each
+            A cutoff in FDR (between 0 and 1) to use for the alignment. Each
             generated Multipeptide needs to have at least one member who is below
             the cutoff.
         verbose : bool

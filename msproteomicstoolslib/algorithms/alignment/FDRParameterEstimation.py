@@ -44,12 +44,12 @@ class ParamEst(object):
 
     In a first step the percentage of decoys of all peakgroups at the target
     fdr is computed (which is then taken as the "aim"). For this "aim" of decoy
-    percentage, the class will try to estimate an fdr_cutoff such that the
+    percentage, the class will try to estimate an FDR cutoff such that the
     percentage of decoy precursors in the final reported result will correspond
     to the "aim". 
 
     If the parameter min_runs (at initialization) is higher than 1, only
-    precursors that are identified in min_runs above the fdr_cutoff will be
+    precursors that are identified in min_runs above the FDR cutoff will be
     reported.
 
     >>> p = ParamEst()
