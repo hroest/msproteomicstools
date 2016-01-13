@@ -409,10 +409,14 @@ class LowessSmoothingBiostats(LowessSmoothingBase):
 
         old_settings = numpy.seterr(all='ignore')
 
-        result = lowess(numpy.array(data1), numpy.array(data2), f=self.f, iter=3)
+        result = lowess(numpy.array(data1), numpy.array(data2), f=self.f, iter=10)
+
         if all([math.isnan(it) for it in result]):
-            # Try standard paramters
-            result = lowess(numpy.array(data1), numpy.array(data2))
+            # Try only a single iteration
+            result = lowess(numpy.array(data1), numpy.array(data2), f=self.f, iter=1)
+            if all([math.isnan(it) for it in result]):
+                # Try all standard parameters
+                result = lowess(numpy.array(data1), numpy.array(data2))
 
         numpy.seterr(**old_settings)
         return data1, result
