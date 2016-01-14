@@ -232,7 +232,7 @@ The tree-based alignment has several options specific to it:
 - ```--mst:useRTCorrection``` Use aligned peakgroup RT to continue threading in
   MST algorithm. It is highly recommend to set this to "True", which it is by
   default.
-- ```--adaptive_rtdiff_multiplier``` Use adaptive RT tolerances: How many
+- ```--mst:adaptive_rtdiff_multiplier``` Use adaptive RT tolerances: How many
   standard deviations the peakgroup can deviate in RT during the alignment (if
   less than fixed_rt_diff, then fixed_rt_diff is used). It is recommended to set
   this to a value between 2.0 and 4.0, the default is 3.0. To turn off this
@@ -257,7 +257,7 @@ Thus, a sample command for a tree-based alignment may look like this
 --in file1_input.csv file2_input.csv file3_input.csv 
 --out aligned.csv 
 --tric_method LocalMST --rt_alignment lowess_cython --fixed_rt_diff 60 
---mst:useRTCorrection True --adaptive_rtdiff_multiplier 3.0 
+--mst:useRTCorrection True --mst:adaptive_rtdiff_multiplier 3.0 
 --target_fdr 0.01 --fdr_extension_cutoff 0.05 
 ```
 

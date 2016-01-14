@@ -10,7 +10,7 @@
   realign_method -> rt_alignment
   max_fdr_quality -> fdr_extension_cutoff
   alignment_score -> rt_anchor_score
-  mst:Stdev_multiplier -> adaptive_rtdiff_multiplier
+  mst:Stdev_multiplier -> mst:adaptive_rtdiff_multiplier
   method -> tric_method
   fdr_cutoff -> fixed_seeding_cutoff
 
@@ -23,7 +23,7 @@ Furthermore, the default values were changed to
 
 - "MedianNearestNeighbour" (for rt_alignment)
 - "LocalMST" (for tric_method) 
-- "3.0" (for adaptive_rtdiff_multiplier) 
+- "3.0" (for mst:adaptive_rtdiff_multiplier) 
 - "True" (for mst:useRTCorrection)
 - "-1" (for fixed_seeding_cutoff)
 - 0.01 (for target_fdr)
