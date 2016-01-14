@@ -235,6 +235,7 @@ class TestUnitSmoothing(unittest.TestCase):
         for a,b in zip(expected,r):
             self.assertAlmostEqual(a, b, 5)
 
+    @attr('statsmodels')
     def test_smooth_lowess_stats(self):
         """Test the lowess smoothing from statsmodels"""
         sm = smoothing.LowessSmoothingStatsmodels(smoothing_param=2/3.0)

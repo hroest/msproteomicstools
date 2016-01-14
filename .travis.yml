@@ -21,6 +21,7 @@ install:
   - pip install rpy2==2.2.5
   - travis_retry python setup.py develop
 script: 
-  - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then nosetests -w test/; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 2.7_with_system_site_packages ]]; then nosetests -a '!statsmodels' -w test/; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 2.7 ]]; then nosetests -w test/; fi
   - if [[ $TRAVIS_PYTHON_VERSION == 3* ]]; then nosetests -w test/; fi
 cache: pip

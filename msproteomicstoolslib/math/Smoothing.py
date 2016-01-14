@@ -500,7 +500,7 @@ class UnivarSplineCV:
     """Smoothing of 2D data using a Python spline (using crossvalidation to determine smoothing parameters).
 
     Will use UnivariateSpline internally, setting the scipy smoothing parameter
-    optimally "s" using crossvalidation  with part of the data (usually 25/75
+    optimally "s" using crossvalidation with part of the data (usually 25/75
     split). This prevents overfit to the data.
     """
 
