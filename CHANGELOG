@@ -21,7 +21,7 @@
 
 Furthermore, the default values were changed to 
 
-- "lowess" (for rt_alignment)
+- "MedianNearestNeighbour" (for rt_alignment)
 - "LocalMST" (for tric_method) 
 - "3.0" (for adaptive_rtdiff_multiplier) 
 - "True" (for mst:useRTCorrection)
