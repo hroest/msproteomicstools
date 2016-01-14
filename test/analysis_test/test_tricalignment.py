@@ -223,7 +223,6 @@ class TestTRICAlignment(unittest.TestCase):
                     filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
 
         cmd = "python %s %s" % (self.script, args)
-        print (cmd)
         sub.check_output(cmd,shell=True)
         
         self.exact_diff(tmpfilename, expected_outcome, header_exclude = ["align_origfilename"])
@@ -244,7 +243,7 @@ class TestTRICAlignment(unittest.TestCase):
         tmpfilename_matrix = "featureAlignment_8.out.tmp_matrix.tsv"
 
         args = "--in %s --out %s --out_ids %s --out_matrix %s --rt_alignment linear --tric_method LocalMSTAllCluster \
-                --adaptive_rtdiff_multiplier -1 --fdr_extension_cutoff 0.4 --matrix_output_method RT" % (
+                --mst:adaptive_rtdiff_multiplier -1 --fdr_extension_cutoff 0.4 --matrix_output_method RT" % (
                     filename, tmpfilename, tmpfilename_ids, tmpfilename_matrix)
         cmd = "python %s %s" % (self.script, args)
         sub.check_output(cmd,shell=True)
