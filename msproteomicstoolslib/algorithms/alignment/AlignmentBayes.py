@@ -45,6 +45,8 @@ from msproteomicstoolslib.algorithms.alignment.Multipeptide import Multipeptide
 from msproteomicstoolslib.algorithms.alignment.SplineAligner import SplineAligner
 from msproteomicstoolslib.format.TransformationCollection import TransformationCollection, LightTransformationData
 from msproteomicstoolslib.algorithms.alignment.AlignmentHelper import addDataToTrafo
+from msproteomicstoolslib.algorithms.PADS.MinimumSpanningTree import MinimumSpanningTree
+from msproteomicstoolslib.algorithms.alignment.AlignmentMST import getDistanceMatrix, TreeConsensusAlignment
 import msproteomicstoolslib.optimized as optimized
 
 def doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, peak_sd):
