@@ -256,6 +256,9 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # Set parameters
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+    # Set transfer function
+    ptransfer = transfer_fxn 
+
     # Only select any peak in the chromatogram if the chance that any peak is
     # present is better than this probability.
     h0_cutoff = 0.5
