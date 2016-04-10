@@ -312,6 +312,9 @@ def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep,
     # starting point
     pg = selection_vector_new[ tree_start ]
 
+    # cdef double H0_PENALTY = 10.0
+    cdef double H0_PENALTY = 1.0
+
     # keep track of all positions of peakgroups from previous runs
     rt_positions = {}
 
@@ -390,7 +393,7 @@ def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep,
         else:
 
             # We have selected H0 here, thus append the h0 score
-            current_score += c_log( getH0Score(mpep, curr_run, mypghash) )
+            current_score += c_log( getH0Score(mpep, curr_run, mypghash) /  H0_PENALTY)
 
             # store our current position 
             if rt_prev is not None:
