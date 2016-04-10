@@ -604,57 +604,18 @@ def evalvec(tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer
                 # the best idea but it still may do the job
                 rt_positions[curr_run] = expected_rt
 
+        if verbose:
+            print "  -> have now score %s" % (current_score) 
+
+    # print "use py version", selection_vector_new.values(), current_score
     return current_score
 
 def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
-            tr_data, n_runs, transfer_width, f=1.0, verbose=False, biasSelection=False):
+            tr_data, n_runs, transfer_width, f=1.0, verbose=False, biasSelection=False, usecpp=True):
         """
-        f = 1.0
+        f = 2.5 # seems reasonable but still pretty wild
         # 1 seems too tame
         # 5 seems very wild
-        f = 2.5 # seems reasonable but still pretty wild
-## New score model
-
-  # f = 0.1, biasSelection=True
-  MCMCM Stats:
-    Nr it:  50000
-    Burnin time:  43
-    Time in best config:  32756
-
-  # f = 1.0, biasSelection=True
-  MCMCM Stats: 
-    Nr it:  50000
-    Burnin time:  21
-    Time in best config:  30386
-
-
-  # f = 2.0, biasSelection=True
-  MCMCM Stats: 
-    Nr it:  50000
-    Burnin time:  126
-    Time in best config:  27036
-
-
-  # f = 1.0, biasSelection=False
-  MCMCM Stats: 
-    Nr it:  50000
-    Burnin time:  165
-    Time in best config:  39079
-
-
-  # f = 2.0, biasSelection=False
-  MCMCM Stats:
-    Nr it:  50000
-    Burnin time:  49
-    Time in best config:  36224
-
-  # f = 5.0, biasSelection=False
-  MCMCM Stats: 
-    Nr it:  50000
-    Burnin time:  3993
-    Time in best config:  26278
-
-
 
         """
 
