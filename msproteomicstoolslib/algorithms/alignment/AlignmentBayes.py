@@ -785,6 +785,21 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
     if outfile is not None:
         fh = open(outfile, "w")
 
+    #  to compare
+    # Perform work
+    fdr_cutoff = 0.01
+    aligned_fdr_cutoff = 0.05
+    rt_diff_isotope = 10
+    use_RT_correction = True
+    stdev_max_rt_per_run = 3.0
+    use_local_stdev = False
+    mrt_diff = 30.0
+    mst_al = TreeConsensusAlignment(mrt_diff, fdr_cutoff, aligned_fdr_cutoff, 
+                                rt_diff_isotope=rt_diff_isotope,
+                                correctRT_using_pg=use_RT_correction,
+                                stdev_max_rt_per_run=stdev_max_rt_per_run,
+                                use_local_stdev=use_local_stdev)
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Set parameters
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -808,6 +823,7 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
     transfer_width = peak_sd * 2.5
 
     transfer_width = 30.0
+    transfer_width = 45.0
 
     # Number of bins to obtain reasonable resolution (should be higher than the
     # above gaussian widths).  On a 600 second chromatogram, 100 bins lead to a
@@ -834,8 +850,6 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
     print("Compute pairwise alignments took %0.2fs" % (time.time() - start) )
     start = time.time()
 
-    from msproteomicstoolslib.algorithms.PADS.MinimumSpanningTree import MinimumSpanningTree
-    from msproteomicstoolslib.algorithms.alignment.AlignmentMST import getDistanceMatrix, TreeConsensusAlignment
     spl_aligner = SplineAligner(initial_alignment_cutoff)
     tree = MinimumSpanningTree(getDistanceMatrix(exp, multipeptides, spl_aligner))
 
@@ -954,6 +968,8 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
 
         # n_runs = len(mpep.getAllPeptides())
         # selection_vector = [0 for i in range(n_runs)]
+
+        # Initialize with zero
         selection_vector = dict([(r.get_id(), 0) for r in exp.runs])
 
         # print "use nr runs", n_runs
@@ -967,14 +983,13 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
             if mpep.hasPrecursorGroup(r.get_id()):
                 g = mpep.getPrecursorGroup(r.get_id()).getAllPrecursors()
                 assert len(g) == 1
-                pg_per_run[r.get_id()] = len(g[0].getAllPeakgroups())
+                pg_per_run[r.get_id()] = len(list(g[0].getAllPeakgroups()))
             else:
                 pg_per_run[r.get_id()] = 0
 
         if verbose:
             print "pg_per_run", pg_per_run, len(pg_per_run)
             print "sel vec", selection_vector
-        prev_score = evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width)
 
         nr_comb = 1.0
         for a in pg_per_run.values():
@@ -991,8 +1006,12 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
                      = p(1|2)  p(2|3)p(3) #  use cond. indep
 
         """
+        best = mpep.find_best_peptide_pg()
 
-        nriterations = 1000
+        if float(best.get_value("m_score")) > 0.0012271012721661626:
+            continue
+
+        nriterations = 2000
         # minimum value: 100 * nr_runs
         # safe value: 100 * nr_runs * safety = 1000 * nr_runs
 
@@ -1022,17 +1041,20 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
             print "9999999 zero vec res", best_score, best_config.values()
             print "44444444444444  ", 
 
-        best_score, best_config = mcmcrun(nriterations, selection_vector, tree_path,
-                                          tree_start, pg_per_run, mpep,
-                                          tr_data, n_runs, transfer_width=transfer_width, verbose=False)
-        ## print "zero start vec res", best_score, best_config.values()
+        if True:
+            best_score, best_config = optimized.c_mcmcrun(nriterations, selection_vector, tree_path,
+                                              tree_start, pg_per_run, mpep,
+                                              tr_data, n_runs, transfer_width=transfer_width, verbose=False)
+        else:
+            best_score, best_config = mcmcrun(nriterations, selection_vector, tree_path,
+                                              tree_start, pg_per_run, mpep,
+                                              tr_data, n_runs, transfer_width=transfer_width, verbose=False, usecpp=True)
+
 
 
         #print "1111111111111111111111111111111111111111111111111111111111111111 "
         greedy = getGreedyVec(mpep, pg_per_run)
-
-
-        greedy_res = evalvec(tree_path, greedy, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, verbose=False)
+        greedy_res = evalvec(tree_path, greedy, tree_start, mpep, tr_data, transfer_width=transfer_width, verbose=False)
 
         greedy_select_zero += len([v for v in greedy.values() if v == 0])
         bayes_select_zero += len([v for v in best_config.values() if v == 0])
@@ -1043,31 +1065,71 @@ def doBayesianAlignmentDescrete(exp, multipeptides, max_rt_diff, initial_alignme
         ##         "greedy:", greedy_res, greedy.values(), "%s combs" % nr_comb, "at pcnt %.2f" % (cnt_better_greedy *100.0 / cnt), \
         ##         " zeros selected %.2f" % (greedy_select_zero*100.0 / (bayes_select_zero+1))
 
-        if best_score > greedy_res:
+
+        if False:
+            # cmp with MST 
+            best = mpep.find_best_peptide_pg()
+            print "  mst_al, selected best peptide", best
+            # Use this peptide to generate a cluster
+            mst_al.verbose = False
+            mst_pgs = [pg_ for pg_ in mst_al._findAllPGForSeed(tree_mapped, tr_data, mpep, best, {})]
+            print "  got %s selected pg" % len(mst_pgs)
+
+            mst_vec = {}
+            for r in pg_per_run.keys():
+                print "iteratue through runs", r
+                mst_vec[r] = 0
+                for k in range(pg_per_run[r]):
+                    mypg = getPG(mpep, r, k+1)
+                    ### print "cmp ", mypg, mst_pgs
+                    if mypg in mst_pgs:
+                        mst_vec[r] = k+1
+                        print "set true for pg %s in run %s" % (k+1, r)
+
+            print "compute MST score:"
+            mst_res = evalvec(tree_path, mst_vec, tree_start, mpep, tr_data, transfer_width=transfer_width, verbose=False)
+            print "m:", mst_vec.values(), mst_res
+
+        best_score = evalvec(tree_path, best_config, tree_start, mpep, tr_data, transfer_width=transfer_width, verbose=False)
+
+        if pepcnt % 100 == 0:
+            print "Progress", pepcnt
+
+        if best_score > greedy_res and False:
             cnt_better_greedy += 1
             print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
             print "r:", best_config.values(), best_score, \
                     "greedy:", greedy_res, greedy.values(), "%s combs" % nr_comb, "at pcnt %.2f" % (cnt_better_greedy *100.0 / cnt), \
                     " zeros selected %.2f" % (greedy_select_zero*100.0 / (bayes_select_zero+1))
+            print "g:", greedy.values(), greedy_res
         elif best_score < greedy_res:
             print "8888888888888888888888888888888888888888888888888888"
             print "greedy better!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", mpep.getAllPeptides()[0].get_id(), pepcnt
             print "r:", best_config.values(), best_score, \
                     "greedy:", greedy_res, greedy.values(), "%s combs" % nr_comb, "at pcnt %.2f" % (cnt_better_greedy *100.0 / cnt), \
                     " zeros selected %.2f" % (greedy_select_zero*100.0 / (bayes_select_zero+1))
+            # return -1
 
-        continue
+        idx = 0
+        for k,v in pg_per_run.iteritems():
+            continue
 
-        for p in mpep.getAllPeptides():
-            m = p.run.get_id() # current_run id
-
-
-            print "I am here in run ", m
-            print "With peptide ", p, "which has %s pg" % (len(p.getAllPeakgroups()))
-            for pg in p.getAllPeakgroups():
-                print "  with pg ", pg, " with score %s (h0 is %s)" % (float(pg.get_value("h_score")), 
+            print "  I am here in run ", k, "with idx", idx
+            idx +=1 
+            if v == 0:
+                print "    No pg for this run"
+            else:
+                for pgnr in range(v):
+                    pg = getPG(mpep, k, pgnr+1)
+                    print "    with pg ", pg, " with prob %s (h0 is %s)" % (float(pg.get_value("h_score")), 
                                                                        float(pg.get_value("h0_score")))
-        return
+
+        ## select peakgroups
+        for k,v in best_config.iteritems():
+            mypg = getPG(mpep, k, v)
+            if mypg is not None:
+                mypg.select_this_peakgroup()
+
 
 def getGreedyVec(mpep, pg_per_run):
     # greedy = dict([(r.get_id(), 1) for r in exp.runs])
