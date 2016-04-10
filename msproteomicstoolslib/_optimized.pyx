@@ -331,7 +331,7 @@ cdef getRandomFloat():
     return rand() * 1.0 /(RAND_MAX);
 
 def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_run, mpep,
-            tr_data, int n_runs_, transfer_width, double f_=1.0, verbose=False, bool biasSelection_=False):
+            tr_data, int n_runs_, transfer_width, double f_=1.0, bool verbose=False, bool biasSelection_=False):
         """
         MC MC in cython
         http://hplgit.github.io/teamods/MC_cython/main_MC_cython.html
@@ -353,6 +353,7 @@ def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_r
         cdef int pg_, pg
         cdef bool accept
         cdef double tmp_score, h0_score, rt
+        cdef double r
 
         cdef map[string, map[int, vector[double] ] ] peakgroup_score_hash
         cdef map[int, vector[double] ] tmp_run_hash
@@ -394,7 +395,6 @@ def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_r
 
                 mypghash[curr_run] = run_hash
 
-        # ca 16.5s for the hash
         cdef int burn_in_time = 0
         cdef int time_in_best_config = 0
 
@@ -402,8 +402,6 @@ def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_r
         best_config = selection_vector
         prev_score = c_evalvec(tree_path, selection_vector, tree_start, mpep, tr_data, transfer_width, False, mypghash)
         best_score = prev_score
-
-        # ca 17.02 for the initial score = takes ca 1 second
 
         if verbose:
             print "start: ", prev_score, selection_vector
@@ -415,14 +413,14 @@ def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_r
             # kprint "selection vector", selection_vector
 
             # Permute vector
-            ### select_run = pg_per_run.keys()[ getRandomInt(0, n_runs-1)  ]
-            select_run = pg_per_run.keys()[ rand() % (n_runs-1)  ]
+            select_run = pg_per_run.keys()[ getRandomInt(0, n_runs-1)  ]
+            ### select_run = pg_per_run.keys()[ rand() % (n_runs-1)  ]
             # print "seelect run", select_run
             if pg_per_run[select_run] == 0:
                 select_pg = 0
             else:
-                ### select_pg = getRandomInt(0, pg_per_run[select_run])
-                select_pg = rand() % pg_per_run[select_run]
+                select_pg = getRandomInt(0, pg_per_run[select_run])
+                ## select_pg = rand() % pg_per_run[select_run]
             # print "seelect pg", select_pg
             if biasSelection:
                 # if we bias our selection, in half of the cases we only
@@ -481,7 +479,6 @@ def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_r
                 if not accept:
                     time_in_best_config += 1
     
-            # 22 seconds until here -> all below takes 4 seconds!!!
             # If we accept the new score, change the selection vector and the score
             if accept:
                 if verbose:
