@@ -164,11 +164,10 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
                     dy = (1.0 * equal_bins - abs(q - matchbin) ) / equal_bins
                     p_Bqr_Bjm = dy * height
             elif ptransfer == "gaussian":
-                # TODO: TIME : this can be really slow
-                p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = transfer_width)
+                ### p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = transfer_width)
+                p_Bqr_Bjm = optimized.norm_pdf(x[q], expected_rt , transfer_width)
 
             # (iv) multiply f_{D_r}(t_q) with the transition probability
-
             if verb:
                 print "Got here for bin %s a value %s * %s = %s"  %(q, f_D_r[q], p_Bqr_Bjm, f_D_r[q] * p_Bqr_Bjm)
             p_Dr_Bjm += f_D_r[q] * p_Bqr_Bjm
