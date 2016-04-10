@@ -464,16 +464,7 @@ def getH0Score(mpep, run_id, mypghash=None):
     else:
         return mypghash[run_id][0]
 
- 
-def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width = 30, verbose=False, mypghash=None):
-
-    if verbose:
-        r = 1.0
-        for a in pg_per_run:
-            r = r*(a+1)
-        print "Eval vector", selection_vector_new
-        print "combinatorics ", pg_per_run, "total comb", r
-        print "follow tree path", tree_path
+def evalvec(tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer_width = 30, verbose=False, mypghash=None):
 
     # starting point
     tree_start
@@ -482,15 +473,24 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
     # keep track of all positions of peakgroups from previous runs
     rt_positions = {}
 
+    # keep track of whether something was selected or not
+    selected_pg = {}
+    H0PENALTY= 1.0
+
     # Do everything for the first peakgroup !
     current_score = 0.0
     if pg != 0:
         pg_score, rt = getScoreAndRT(mpep, tree_start, pg, mypghash)
         rt_positions[ tree_start ] = rt
+        selected_pg[ tree_start ] = pg_score
         current_score += math.log(pg_score)
     else:
         # We have selected H0 here, thus append the h0 score
         current_score += math.log( getH0Score(mpep, tree_start, mypghash) )
+        selected_pg[ tree_start ] = -1
+
+    if verbose:
+        print "start with score %s at point %s" % (current_score, tree_start) 
 
     for e in tree_path:
         ####
@@ -499,6 +499,8 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
         prev_run = e[0]
         curr_run = e[1]
         pg = selection_vector_new[ curr_run ]
+        if verbose:
+            print "compute p(%s|%s)" % (e[1], e[0]) 
 
         # get the retention time position in the previous run
         rt_prev = rt_positions.get( prev_run, None)
@@ -506,6 +508,8 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
         if pg != 0:
             pg_score, rt_curr = getScoreAndRT(mpep, curr_run, pg, mypghash)
             current_score += math.log(pg_score)
+
+            selected_pg[ curr_run ] = pg_score
 
             #
             # p( e[1] ) -> we need to compute p( e[1] | e[0] ) 
@@ -515,6 +519,8 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
             #  run e[0] eluting at position rt_prev
             #
 
+            if verbose:
+                print "Append score for adding peakgroup %s: %s" % (rt_curr, math.log(pg_score))
 
             if rt_prev is not None:
 
@@ -545,6 +551,8 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
                 ###      current_score += -99999999999999999999999
                 norm_rt_diff = (expected_rt-rt_curr) / transfer_width
                 current_score = optimized.fast_score_update(norm_rt_diff, current_score)
+                if verbose:
+                    print "Append score for RT diff from expected (%s): %s" % (norm_rt_diff, math.log( optimized.norm_cdf(norm_rt_diff) ))
 
             else:
                 # no previous run, this means all previous runs were
@@ -556,8 +564,13 @@ def evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_da
 
         else:
 
+            selected_pg[ curr_run ] = -1
+
             # We have selected H0 here, thus append the h0 score
-            current_score += math.log( getH0Score(mpep, curr_run, mypghash) )
+            current_score += math.log( getH0Score(mpep, curr_run, mypghash) / H0PENALTY )
+            if verbose:
+                print "Selected score H0, append: %s" % (math.log( getH0Score(mpep, curr_run, mypghash) ))
+                print "Get prev run al: %s" % (selected_pg[ prev_run])
 
             # store our current position 
             if rt_prev is not None:
@@ -678,12 +691,13 @@ def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
 
             mypghash[curr_run] = run_hash
 
-
-
         burn_in_time = 0
         time_in_best_config = 0
 
-        prev_score = evalvec(tree_path, selection_vector, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
+        if usecpp:
+            prev_score = optimized.c_evalvec(tree_path, selection_vector, tree_start, mpep, tr_data, transfer_width, False, mypghash)
+        else:
+            prev_score = evalvec(            tree_path, selection_vector, tree_start, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
         best_score = prev_score
         best_config = selection_vector
         BIAS_PEAKGROUPS=1
@@ -710,8 +724,6 @@ def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
                     select_pg = random.randint(0, min(BIAS_PEAKGROUPS, pg_per_run[select_run]))
                     print "bias selection, change pg from %s to %s" %(opg, select_pg)
 
-
-
             if selection_vector[select_run] == select_pg:
                 # its equal, no step 
                 continue
@@ -725,13 +737,27 @@ def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
             ## eval vector
             #
 
-            score = evalvec(tree_path, selection_vector_new, tree_start, pg_per_run, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
+            if usecpp:
+                score = optimized.c_evalvec(tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer_width, False, mypghash)
+            else:
+                score = evalvec(            tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer_width=transfer_width, mypghash=mypghash)
+
+            if False:
+                score = evalvec(              tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer_width, False, mypghash=mypghash)
+                c_score = optimized.c_evalvec(tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer_width, False, mypghash)
+                oldscore = evalvec_old_python(tree_path, selection_vector_new, tree_start, mpep, tr_data, transfer_width=transfer_width)
+                print oldscore, score, c_score
+                if oldscore > -1e20:
+                    print "assert"
+                    assert ( abs(oldscore - score) < 1e-5)
+                    assert ( abs(oldscore - c_score) < 1e-5)
+
             delta_score = score - prev_score
             if verbose:
                 print prev_score, "proposed: ", selection_vector_new.values(), score, " -> delta",  delta_score
 
             r = random.random()
-            accept = delta_score > 0 or r < math.exp(delta_score/f)
+            accept = (delta_score > 0) or (r < math.exp(delta_score/f))
 
             if score >= best_score:
                 if score > best_score:
@@ -753,7 +779,7 @@ def mcmcrun(nrit, selection_vector, tree_path, tree_start, pg_per_run, mpep,
                 # with the same score
                 if not accept:
                     time_in_best_config += 1
-    
+
             # If we accept the new score, change the selection vector and the score
             if accept:
                 if verbose:
