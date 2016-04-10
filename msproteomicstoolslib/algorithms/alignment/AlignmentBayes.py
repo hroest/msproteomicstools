@@ -348,7 +348,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             p_D_no_m = []
             for j in xrange(bins):
 
-                tmp_prod = doBayes_collect_product_data(mpep, tr_data, m, j, h0, 
+                # TODO : this uses the same transfer width for all runs, not so smart ... 
+                tmp_prod = optimized.doBayes_collect_product_data(mpep, tr_data, m, j, h0, 
                                 run_likelihood, x, peak_sd, bins, ptransfer, transfer_width)
 
                 p_D_no_m.append(tmp_prod)
