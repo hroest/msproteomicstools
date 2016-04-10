@@ -228,11 +228,24 @@ def doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post):
     pylab.clf()
 
 def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutoff,
-                        smoothing_method, doPlot=True, outfile=None, transfer_fxn="bartlett"):
+                        smoothing_method, doPlot=True, outfile=None, transfer_fxn="bartlett",nr_bins=100, peak_sd=10):
     """
     Bayesian alignment
+
+    ptransfer = "all"
+    ptransfer = "equal" # boxcar / rectangle
+    ptransfer = "bartlett" #triangular
+    ptransfer = "gaussian" # gaussian window
+    ptransfer = "bartlett" #triangular
+
+    peak_sd = 15 # 30 seconds peak (2 stdev 95 \% of all signal)
+    peak_sd = 10 # 30 seconds peak (3 stdev 99.7 \% of all signal)
     """
-    
+
+    doPlot = False
+    verbose = False
+    highlyVerbose = False
+
     fh = None
     if outfile is not None:
         fh = open(outfile, "w")
@@ -245,24 +258,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # present is better than this probability.
     h0_cutoff = 0.5
 
-    ptransfer = "all"
-    ptransfer = "equal" # boxcar / rectangle
-    ptransfer = "bartlett" #triangular
-    ptransfer = "gaussian" # gaussian window
-    # ptransfer = "bartlett" #triangular
-    ptransfer = transfer_fxn
-
-    peak_sd = 15 # 30 seconds peak (2 stdev 95 \% of all signal)
-    peak_sd = 10 # 30 seconds peak (3 stdev 99.7 \% of all signal)
-    # peak_sd = 7.5
-    # peak_sd = 5
-    ## equal_bins_mult = 2.0 # two seems reasonable
-    ## #equal_bins_mult = 4.0 # two seems reasonable
-    ## gaussian_scale = 2.5
-    ## gaussian_scale = 3.0
-    ## # equal_bins_mult = 2.5 # two seems reasonable
-    #equal_bins_mult = 0.25
-    # peak_sd = 15 # 30 seconds peak (2 stdev 95 \% of all signal)
+    # Denotes the width of the peak in RT-domain each peak 
+    # peak_sd
 
     # Increase uncertainty by a factor of 2.5 when transferring probabilities
     # from one run to another
@@ -271,7 +268,7 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # Number of bins to obtain reasonable resolution (should be higher than the
     # above gaussian widths).  On a 600 second chromatogram, 100 bins lead to a
     # resolution of ca. 6 seconds.
-    bins = 100
+    bins = nr_bins
 
     # How much should the RT window extend beyond the peak area (in %) to
     # ensure for smooth peaks when computing gaussians at the end of the
@@ -296,9 +293,11 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Step 2 : Iterate through all peptides
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    print "Will do %s peptides" % len(multipeptides)
     for pepcnt,mpep in enumerate(multipeptides):
 
-        # print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt
+        if verbose:
+            print "00000000000000000000000000000000000 new peptide (bayes)", mpep.getAllPeptides()[0].get_id(), pepcnt, len(multipeptides)
 
         # Step 2.1 : Compute the retention time space (min / max)
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -316,7 +315,6 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             min_rt -= peak_sd
             max_rt += peak_sd
 
-
         # Step 2.2 : Collect peakgroup data across runs
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
         h0 = {}
@@ -327,6 +325,10 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
         # Step 2.3 : Loop over all runs for this peptide 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
         for p in mpep.getAllPeptides():
+
+            if verbose:
+                print "Do run", p.run.get_id()
+
             m = p.run.get_id() # current_run id
 
             # Step 2.3.1 : obtain likelihood f_{D_m}(t) for current run m and prior p(B_{jm})
@@ -372,12 +374,14 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
 
             # Step 2.3.4 : Compute maximal posterior and plot data
             #              
+
             # print "MAP (B_m|D)", max([ [xx,i] for i,xx in enumerate(B_m)])
             # print "MAP (B_m|D_m)", max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])
             max_prior = max([ [xx,i] for i,xx in enumerate(run_likelihood[m])])[1]
             max_post = max([ [xx,i] for i,xx in enumerate(B_m)])[1]
 
             if doPlot:
+                # TODO if zero ...
                 p_D_no_m /= sum(p_D_no_m) # for plotting purposes
                 p_D_no_m *= 1-h0[m] # for plotting purposes
                 doPlotStuff(mpep, x, run_likelihood, B_m, m, p_D_no_m, max_prior, max_post)
@@ -392,6 +396,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
                 right = float(pg.get_value("rightWidth"))
                 tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
                 pg.add_value("accum_p", sum([xx[1] for xx in tmp]))
+                if highlyVerbose:
+                    print "Got pg", pg, "with value", sum([xx[1] for xx in tmp])
 
             # select the peak with the maximum probability weight
             best_psum = max([(pg.get_value("accum_p"), pg) for pg in p.getAllPeakgroups()])
@@ -402,7 +408,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
                 if fh is not None:
                     fh.write("%s\t%s\n" % (best_psum[1].get_value("id"), best_psum[0]) )
                 
-        # print "peptide (bayes)", mpep.getAllPeptides()[0].get_id()
+        if verbose:
+            print "peptide (bayes)", mpep.getAllPeptides()[0].get_id()
 
     if fh is not None:
         fh.close()
