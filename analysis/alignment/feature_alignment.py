@@ -46,7 +46,7 @@ from msproteomicstoolslib.algorithms.alignment.Multipeptide import Multipeptide
 from msproteomicstoolslib.algorithms.alignment.MRExperiment import MRExperiment
 from msproteomicstoolslib.algorithms.alignment.AlignmentAlgorithm import AlignmentAlgorithm
 from msproteomicstoolslib.algorithms.alignment.AlignmentMST import getDistanceMatrix, TreeConsensusAlignment
-from msproteomicstoolslib.algorithms.alignment.AlignmentBayes import doBayesianAlignment
+from msproteomicstoolslib.algorithms.alignment.AlignmentBayes import doBayesianAlignment, doBayesianAlignmentDescrete
 from msproteomicstoolslib.algorithms.alignment.AlignmentHelper import write_out_matrix_file, addDataToTrafo
 from msproteomicstoolslib.algorithms.alignment.SplineAligner import SplineAligner
 from msproteomicstoolslib.algorithms.alignment.FDRParameterEstimation import ParamEst
@@ -570,9 +570,12 @@ def handle_args():
     experimental_parser.add_argument("--tmpdir", dest="tmpdir", default="/tmp/", help="Temporary directory")
     experimental_parser.add_argument("--alignment_score", dest="alignment_score", default=0.0001, type=float, help="Minimal score needed for a feature to be considered for alignment between runs", metavar='0.0001')
     experimental_parser.add_argument("--mst:useRTCorrection", dest="mst_correct_rt", type=ast.literal_eval, default=False, help="Use aligned peakgroup RT to continue threading in MST algorithm", metavar='False')
+    experimental_parser.add_argument("--mst:useReference", dest="mst_use_ref", type=ast.literal_eval, default=False, help="Use a reference-based tree for alignment", metavar='False')
     experimental_parser.add_argument("--mst:Stdev_multiplier", dest="mst_stdev_max_per_run", type=float, default=-1.0, help="How many standard deviations the peakgroup can deviate in RT during the alignment (if less than max_rt_diff, then max_rt_diff is used)", metavar='-1.0')
     experimental_parser.add_argument("--mst:useLocalStdev", dest="mst_local_stdev", type=ast.literal_eval, default=False, help="Use standard deviation of local region of the chromatogram", metavar='False')
     experimental_parser.add_argument("--bayes:transfer_fxn", dest="bayes_transfer_fxn", default="bartlett", help="Transfer function")
+    experimental_parser.add_argument("--bayes:nr_bins", dest="bayes_nr_bins", default=100, type=int, help="Number of bins")
+    experimental_parser.add_argument("--bayes:peak_sd", dest="bayes_peak_sd", default=10, type=int, help="Bayes peak standard deviation")
     experimental_parser.add_argument("--target_fdr", dest="target_fdr", default=-1, type=float, help="If parameter estimation is used, which target FDR should be optimized for. If set to lower than 0, parameter estimation is turned off.", metavar='0.01')
 
     # deprecated methods
@@ -643,14 +646,29 @@ def main(options):
     if options.target_fdr > 0:
         multipeptides = doParameterEstimation(options, this_exp, multipeptides)
 
-    if options.method == "Bayesian":
+    if options.method == "BayesianDescrete":
+        stdev_max_rt_per_run = None
+        start = time.time()
+        doBayesianAlignmentDescrete(this_exp, multipeptides, float(options.rt_diff_cutoff), 
+                       float(options.alignment_score), 
+                       options.realign_method, doPlot=True, 
+                       outfile=options.ids_outfile + "extra",
+                       transfer_fxn=options.bayes_transfer_fxn) 
+        print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
+    elif options.method == "Bayesian":
+
+        if options.realign_method == "diRT":
+            # We use the real rt based on the left/right width ... 
+            raise Exception("It wont work with diRT")
+
         stdev_max_rt_per_run = None
         start = time.time()
         doBayesianAlignment(this_exp, multipeptides, float(options.rt_diff_cutoff), 
                        float(options.alignment_score), 
                        options.realign_method, doPlot=True, 
                        outfile=options.ids_outfile + "extra",
-                       transfer_fxn=options.bayes_transfer_fxn) 
+                       transfer_fxn=options.bayes_transfer_fxn,
+                       peak_sd=options.bayes_peak_sd, nr_bins=options.bayes_nr_bins) 
         print("Re-aligning peak groups took %0.2fs" % (time.time() - start) )
     elif options.method == "LocalMST" or options.method == "LocalMSTAllCluster":
         start = time.time()
