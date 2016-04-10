@@ -27,7 +27,6 @@ cdef extern from "math.h":
 cdef extern from "time.h":
     double c_time "time" (void*)
 
-
 # http://stackoverflow.com/questions/28973153/cython-how-to-wrap-a-c-function-that-returns-a-c-object
 cdef class Cy_LinearRangeInterpolator(object):
 
@@ -128,6 +127,17 @@ def norm_cdf(double x):
     # 1 / math.sqrt(2)
     return 0.5 * c_erfc(x * 0.7071067811865475) 
 
+cdef c_norm_pdf(double x, double m, double s):
+    # static const float inv_sqrt_2pi = 0.3989422804014327;
+    cdef double a = (x - m) / s
+    return 0.3989422804014327 / s * c_exp(-0.5 * a * a)
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def norm_pdf(double x, double m, double s):
+    cdef double a = (x - m) / s
+    return 0.3989422804014327 / s * c_exp(-0.5 * a * a)
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def fast_score_update(double x, double current_score):
@@ -143,6 +153,125 @@ def fast_score_update(double x, double current_score):
         return (current_score + c_log(cdf_v))
     else:
         return (current_score - 999999999.0)
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True) # no zero division checks ...
+def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, np.float64_t[:] x, peak_sd, int bins,
+                                ptransfer, double transfer_width, verb=False):
+    """
+    Bayesian computation of the contribution of all other runs to the probability
+
+    Loops over all runs r to compute the probabilities, for each run:
+        - (i)   RT transfer from source to target r
+        - (ii)  Compute p(D_r|B_{jm} ) = \sum_{q=1}^{k} p(D_r | B_{qr} ) * p(B_{qr}|B_{jm})
+        - (iii) Compute transition probability p(B_{qr}|B_{jm} )
+
+    For step (iii), there are different options available how to compute the
+    transition probability p(B_{qr}|B_{jm}), see ptransfer option:
+        - all: the best bin gets all the probability
+        - equal: all bins around the best bin get equal probability
+        - bartlett: probability is distributed according to a bartlett (triangular) window
+        - gaussian: probability is distributed according to a gaussian
+
+    This step usually takes the longest, with the bottleneck either in getTrafo
+    or scipy.stats.norm.pdf
+    """
+
+    cdef:
+        int q
+        int count
+        int ptransfer_method 
+        int matchbin
+
+        double p_Dr_Bjm
+        double p_Bqr_Bjm 
+        double expected_rt
+        double tmp
+
+        double p_absent 
+        double p_present
+        double prod_acc
+        double equal_bins
+        double dy
+        np.float64_t[:] f_D_r 
+
+    dt = (max(x) - min(x)) / len(x)
+    equal_bins = int(transfer_width / dt) + 1
+
+    if ptransfer == "all":
+        ptransfer_method = 0
+    elif ptransfer == "equal":
+        ptransfer_method = 1
+    elif ptransfer == "bartlett":
+        ptransfer_method = 2
+    elif ptransfer == "gaussian":
+        ptransfer_method = 3
+
+    prod_acc = 1.0
+    # \prod
+    # r = 1 \ m to n
+    for rloop in mpep.getAllPeptides(): # loop over runs
+        r = rloop.run.get_id()
+        if r == m:
+            continue
+        f_D_r = run_likelihood[r]
+
+        # (i) transform the retention time from the source run (m) to the one
+        #     of the target run (r) and find the matching bin in run r
+        source = m
+        target = r
+        expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
+        matchbin = int((expected_rt - min(x)) / dt )
+
+        # (ii) Compute p(D_r|B_{jm} = \sum_{q=1}^{k} p(D_r | B_{qr} ) * p(B_{qr}|B_{jm}
+        #      This is a sum over all bins of the target run r
+        p_Dr_Bjm = 0 # p(D_r|B_{jm})
+        # \sum 
+        # q = 1 to k
+        # for q in xrange(bins):
+        for count, q in enumerate(range(bins)):
+
+            # (iii) Compute transition probability between runs, e.g.
+            #       p(B_{qr}|B_{jm} which is the probability of the analyte
+            #       being in bin q (of run r) given that the analyte is
+            #       actually in bin j (of run m): p_Bqr_Bjm
+            #       Initially set to zero
+            p_Bqr_Bjm = 0
+            if ptransfer_method == 0:
+                if q == matchbin:
+                    p_Bqr_Bjm = 1
+            elif ptransfer_method == 1:
+                if c_fabs(q - matchbin) < equal_bins:
+                    p_Bqr_Bjm = 0.5 / equal_bins
+            elif ptransfer_method == 2:
+                if c_fabs(q - matchbin) < equal_bins:
+                    # height of the triangle
+                    height = 1.0 / equal_bins
+                    # height of normalized window
+                    dy = (1.0 * equal_bins - c_fabs(q - matchbin) ) / equal_bins
+                    p_Bqr_Bjm = dy * height
+            elif ptransfer_method == 3:
+                ## p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = transfer_width)
+                ## print scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = transfer_width)
+                ## print optimized.norm_pdf(x[q], expected_rt , transfer_width)
+                # p_Bqr_Bjm = c_norm_pdf(x[q], expected_rt , transfer_width)
+
+                # static const float inv_sqrt_2pi = 0.3989422804014327;
+                tmp = (x[q] - expected_rt) / transfer_width
+                p_Bqr_Bjm = 0.3989422804014327 / transfer_width * c_exp(-0.5 * tmp * tmp)
+
+            # (iv) multiply f_{D_r}(t_q) with the transition probability
+            p_Dr_Bjm += f_D_r[q] * p_Bqr_Bjm
+
+        p_absent = h0[r]
+        p_present = 1-h0[r]
+        #p_present = 1.0
+        #p_absent = 0.0
+        # use correct formula from last page
+        prod_acc *= p_present * p_Dr_Bjm + p_absent / bins 
+
+    return prod_acc
 
 cdef c_norm_cdf(double x):
     # 1 / math.sqrt(2)
