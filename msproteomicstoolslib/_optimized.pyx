@@ -23,6 +23,7 @@ cdef extern from "math.h":
     double c_fabs "fabs" (double x)
     double c_log "log" (double x)
     double c_exp "exp" (double x)
+    double c_floor "floor" (double x)
 cdef extern from "time.h":
     double c_time "time" (void*)
 
@@ -179,25 +180,17 @@ def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep,
     cdef double current_score
     cdef double rt_curr, pg_score, rt, norm_rt_diff, expected_rt
 
-    # 25 seconds up to here ...
-    ## cdef map[char *, double] selection_vector_new_
-
-
     # starting point
     pg = selection_vector_new[ tree_start ]
 
     # keep track of all positions of peakgroups from previous runs
     rt_positions = {}
 
-    ## cdef map[char *, double] rt_positions_
-    ## cdef map[char *, double].iterator rt_prev_
-
     # Do everything for the first peakgroup !
     current_score = 0.0
     if pg != 0:
         pg_score, rt = getScoreAndRT(mpep, tree_start, pg, mypghash)
         rt_positions[ tree_start ] = rt
-        # rt_positions_[ <char *>tree_start ] = rt
         current_score += c_log(pg_score)
     else:
         # We have selected H0 here, thus append the h0 score
@@ -213,7 +206,6 @@ def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep,
 
         # get the retention time position in the previous run
         rt_prev = rt_positions.get( prev_run, None)
-        #rt_prev_ = rt_positions_.find(prev_run)
 
         if pg != 0:
             pg_score, rt_curr = getScoreAndRT(mpep, curr_run, pg, mypghash)
@@ -227,8 +219,6 @@ def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep,
             #  run e[0] eluting at position rt_prev
             #
 
-
-            # if rt_prev_ != rt_positions_.end():
             if rt_prev is not None:
 
                 source = prev_run
@@ -267,7 +257,6 @@ def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep,
 
             # store our current position 
             rt_positions[curr_run] = rt_curr
-            # rt_positions_[ <char *>curr_run ] = rt_curr
 
         else:
 
@@ -275,7 +264,6 @@ def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep,
             current_score += c_log( getH0Score(mpep, curr_run, mypghash) )
 
             # store our current position 
-            #if rt_prev_ != rt_positions_.end():
             if rt_prev is not None:
 
                 source = prev_run
@@ -306,7 +294,6 @@ def c_evalvec(list tree_path, dict selection_vector_new, bytes tree_start, mpep,
                 # We store the expected RT as the current one -> it is not
                 # the best idea but it still may do the job
                 rt_positions[curr_run] = expected_rt
-                #rt_positions_[ <char *>curr_run ] = expected_rt
 
     return current_score
 
@@ -326,15 +313,16 @@ def getPG(mpep, run, pg):
 
     if len( prgr.getAllPrecursors() ) > 1:
         raise Exception("Not implemented for precursor groups...")
-    return prgr.getAllPrecursors()[0].getAllPeakgroups()[pg-1]
-    # return ( list(list(mpep.getAllPeptides())[ run ].getAllPeakgroups())[pg - 1] )
+    return list(prgr.getAllPrecursors()[0].getAllPeakgroups())[pg-1]
+    ## return ( list(list(mpep.getAllPeptides())[ run ].getAllPeakgroups())[pg - 1] )
 
 # good random nr
 # http://stackoverflow.com/questions/6862844/how-bad-rand-from-stdlib-h-is
 # http://eternallyconfuzzled.com/arts/jsw_art_rand.aspx# good random nr
+@cython.cdivision(True)
 cdef getRandomInt(int a, int b):
     # return random.randint(a, b)
-    return rand()%(b-a)+a;  # do not use this
+    return a + (rand() % <int>(b - a + 1)) # best choice, may have some bias towards lower values
     # return a + rand() / (RAND_MAX / (b - a) + 1)
 
 cdef getRandomFloat():
