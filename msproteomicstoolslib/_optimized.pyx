@@ -325,9 +325,10 @@ cdef getRandomInt(int a, int b):
     return a + (rand() % <int>(b - a + 1)) # best choice, may have some bias towards lower values
     # return a + rand() / (RAND_MAX / (b - a) + 1)
 
+@cython.cdivision(True)
 cdef getRandomFloat():
     #return random.random()
-    return rand()/(RAND_MAX);
+    return rand() * 1.0 /(RAND_MAX);
 
 def c_mcmcrun(int nrit_, selection_vector, tree_path, bytes tree_start, pg_per_run, mpep,
             tr_data, int n_runs_, transfer_width, double f_=1.0, verbose=False, bool biasSelection_=False):
