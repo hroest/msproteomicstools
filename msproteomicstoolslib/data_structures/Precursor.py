@@ -103,6 +103,7 @@ class GeneralPrecursor(PrecursorBase):
 
     def add_peakgroup(self, peakgroup):
         self.peakgroups.append(peakgroup)
+        self.sort()
   
     def get_run_id(self):
       return self.run.get_id()
@@ -110,6 +111,11 @@ class GeneralPrecursor(PrecursorBase):
     def append(self, transitiongroup):
         assert self.id == transitiongroup.get_id()
         self.peakgroups.append(transitiongroup)
+        self.sort()
+
+    def sort(self):
+        self.peakgroups.sort(lambda x,y: cmp(x.get_fdr_score(), y.get_fdr_score() ) )
+
   
     def get_best_peakgroup(self):
         """ Return the best peakgroup according to fdr score
