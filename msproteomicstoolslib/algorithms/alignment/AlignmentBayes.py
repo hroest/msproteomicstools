@@ -262,6 +262,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     verbose = False
     highlyVerbose = False
 
+    stdev_max_rt_per_run = 2.5
+    
     fh = None
     if outfile is not None:
         fh = open(outfile, "w")
@@ -275,14 +277,16 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
 
     # Only select any peak in the chromatogram if the chance that any peak is
     # present is better than this probability.
-    h0_cutoff = 0.5
+    #  -> To get ROC or precision-recall plots we need to output all of them
+    # h0_cutoff = 0.5
+    h0_cutoff = 1.0
 
     # Denotes the width of the peak in RT-domain each peak 
     # peak_sd
 
-    # Increase uncertainty by a factor of 2.5 when transferring probabilities
-    # from one run to another
-    transfer_width = peak_sd * 2.5
+    # Increase uncertainty by a factor of when transferring probabilities from
+    # one run to another
+    transfer_width = peak_sd * stdev_max_rt_per_run 
 
     # Number of bins to obtain reasonable resolution (should be higher than the
     # above gaussian widths).  On a 600 second chromatogram, 100 bins lead to a
@@ -293,6 +297,12 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
     # ensure for smooth peaks when computing gaussians at the end of the
     # chromatogram
     rt_window_ext = 0.2
+
+    # Use a per-alignment transfer width (punishing bad runs, rewarding good alignments)
+    # 
+    # stdev_max_rt_per_run = 4.0 ## this works even for linear that is 50 seconds off (with gauss fxn)
+    # stdev_max_rt_per_run = 2.5 ## still works, but is cutting it close ... 
+    stdev_max_rt_per_run = -1 
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Step 1 : Get alignments (all against all)
@@ -362,9 +372,8 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             p_D_no_m = []
             for j in xrange(bins):
 
-                # TODO : this uses the same transfer width for all runs, not so smart ... 
                 tmp_prod = optimized.doBayes_collect_product_data(mpep, tr_data, m, j, h0, 
-                                run_likelihood, x, peak_sd, bins, ptransfer, transfer_width)
+                                run_likelihood, x, peak_sd, bins, ptransfer, transfer_width, stdev_max_rt_per_run)
 
                 p_D_no_m.append(tmp_prod)
                 B_jm = f_D_m[j] * p_B_jm * tmp_prod # f_{D_m}(t_j) * p(B{jm}) * ... 
