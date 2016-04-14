@@ -139,10 +139,14 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
 
         # If verbose
         if verb:
+            print "---------------------------------------------------------------------------"
             print "use method", ptransfer
             print "convert from", source, " to ", target
             print "predict for", x[j]
             print "results in", expected_rt
+            print "transfer_width", transfer_width
+            print "stdev per run:", tr_data.getStdev(source, target)
+            print "stdev per run: -> mult", stdev_max_rt_per_run * tr_data.getStdev(source, target)
             print x[matchbin]
             print "best bin", int((expected_rt - min(x)) / dt )
             print "eq bins", equal_bins
@@ -190,6 +194,7 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
         # use correct formula from last page
         prod_acc *= p_present * p_Dr_Bjm + p_absent / bins 
         if verb:
+            print "convert from", source, " to ", target
             print "all sum", p_Dr_Bjm
             print "h0 here", h0[r]
             print " === add for bin", p_present * p_Dr_Bjm + p_absent / bins 
