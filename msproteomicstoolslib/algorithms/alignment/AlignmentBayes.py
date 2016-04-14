@@ -89,7 +89,7 @@ def doBayes_collect_pg_data(mpep, h0, run_likelihood, x, min_rt, max_rt, bins, p
         # print " == Selected peakgroup ", current_best_pg.print_out()
 
 def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, peak_sd, bins,
-                                ptransfer, transfer_width, verb=False):
+                                ptransfer, transfer_width, stdev_max_rt_per_run, verb=False):
     """
     Bayesian computation of the contribution of all other runs to the probability
 
@@ -110,7 +110,12 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
 
     dt = (max(x) - min(x)) / len(x)
     equal_bins = int(transfer_width / dt) + 1
+    ## print "equal bins", equal_bins
 
+    local_transfer_width = transfer_width
+
+    verb = True
+    verb = False
     prod_acc = 1.0
     # \prod
     # r = 1 \ m to n
@@ -127,6 +132,10 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
         # TODO: TIME : this fxn call can be rather slow, 13% - 80% of the time (depending on alignment method)
         expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
         matchbin = int((expected_rt - min(x)) / dt )
+
+        if stdev_max_rt_per_run > 0:
+            local_transfer_width = max(transfer_width, stdev_max_rt_per_run * tr_data.getStdev(source, target) )
+            equal_bins = int(local_transfer_width / dt) + 1
 
         # If verbose
         if verb:
@@ -167,7 +176,7 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, x, pea
                     p_Bqr_Bjm = dy * height
             elif ptransfer == "gaussian":
                 ### p_Bqr_Bjm = scipy.stats.norm.pdf(x[q], loc = expected_rt , scale = transfer_width)
-                p_Bqr_Bjm = optimized.norm_pdf(x[q], expected_rt , transfer_width)
+                p_Bqr_Bjm = optimized.norm_pdf(x[q], expected_rt , local_transfer_width)
 
             # (iv) multiply f_{D_r}(t_q) with the transition probability
             if verb:

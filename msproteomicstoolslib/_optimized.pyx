@@ -158,7 +158,7 @@ def fast_score_update(double x, double current_score):
 @cython.wraparound(False)
 @cython.cdivision(True) # no zero division checks ...
 def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, np.float64_t[:] x, peak_sd, int bins,
-                                ptransfer, double transfer_width, verb=False):
+                                ptransfer, double transfer_width, double stdev_max_rt_per_run, verb=False):
     """
     Bayesian computation of the contribution of all other runs to the probability
 
@@ -183,21 +183,26 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, np.flo
         int count
         int ptransfer_method 
         int matchbin
+        int equal_bins
 
         double p_Dr_Bjm
         double p_Bqr_Bjm 
         double expected_rt
         double tmp
+        double local_transfer_width
 
         double p_absent 
         double p_present
         double prod_acc
-        double equal_bins
         double dy
+        double dt 
+
         np.float64_t[:] f_D_r 
 
     dt = (max(x) - min(x)) / len(x)
-    equal_bins = int(transfer_width / dt) + 1
+    equal_bins = <int>(transfer_width / dt) + 1
+
+    local_transfer_width = transfer_width
 
     if ptransfer == "all":
         ptransfer_method = 0
@@ -222,7 +227,11 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, np.flo
         source = m
         target = r
         expected_rt = tr_data.getTrafo(source, target).predict( [ x[j] ] )[0]
-        matchbin = int((expected_rt - min(x)) / dt )
+        matchbin = <int>((expected_rt - min(x)) / dt )
+
+        if stdev_max_rt_per_run > 0:
+            local_transfer_width = stdev_max_rt_per_run * tr_data.getStdev(source, target)
+            equal_bins = <int>(local_transfer_width / dt) + 1
 
         # (ii) Compute p(D_r|B_{jm} = \sum_{q=1}^{k} p(D_r | B_{qr} ) * p(B_{qr}|B_{jm}
         #      This is a sum over all bins of the target run r
@@ -258,8 +267,8 @@ def doBayes_collect_product_data(mpep, tr_data, m, j, h0, run_likelihood, np.flo
                 # p_Bqr_Bjm = c_norm_pdf(x[q], expected_rt , transfer_width)
 
                 # static const float inv_sqrt_2pi = 0.3989422804014327;
-                tmp = (x[q] - expected_rt) / transfer_width
-                p_Bqr_Bjm = 0.3989422804014327 / transfer_width * c_exp(-0.5 * tmp * tmp)
+                tmp = (x[q] - expected_rt) / local_transfer_width
+                p_Bqr_Bjm = 0.3989422804014327 / local_transfer_width * c_exp(-0.5 * tmp * tmp)
 
             # (iv) multiply f_{D_r}(t_q) with the transition probability
             p_Dr_Bjm += f_D_r[q] * p_Bqr_Bjm
