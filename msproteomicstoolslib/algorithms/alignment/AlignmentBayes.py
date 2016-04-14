@@ -473,7 +473,7 @@ def getScoreAndRT(mpep, run_id, pg, mypghash=None):
         current_score = float(mypg.get_value("h_score"))
     else:
         current_score = mypghash[run_id][pg][0]
-        score_h0 = mypghash[run_id][pg][2]
+        score_h0 = mypghash[run_id][pg][1]
         rt = mypghash[run_id][pg][2]
 
     return (current_score, rt)
