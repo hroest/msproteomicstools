@@ -426,7 +426,7 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
                 tmp = [(xx,yy) for xx,yy in zip(x,B_m) if left-0.5*dt < xx and right+0.5*dt > xx]
                 pg.add_value("accum_p", sum([xx[1] for xx in tmp]))
                 if highlyVerbose:
-                    print "Got pg", pg, "with value", sum([xx[1] for xx in tmp])
+                    print "Got pg", pg, "inital value", float(pg.get_value("h_score")),  "with value", sum([xx[1] for xx in tmp]), "size: ", right-left
 
             # select the peak with the maximum probability weight
             best_psum = max([(pg.get_value("accum_p"), pg) for pg in p.getAllPeakgroups()])
@@ -434,8 +434,11 @@ def doBayesianAlignment(exp, multipeptides, max_rt_diff, initial_alignment_cutof
             best_pg = best_psum[1]
             if float(best_pg.get_value("h0_score")) < h0_cutoff: 
                 best_pg.select_this_peakgroup()
+                print "  SELECT pg:", best_pg, "h0:", float(best_pg.get_value("h0_score"))
                 if fh is not None:
                     fh.write("%s\t%s\n" % (best_psum[1].get_value("id"), best_psum[0]) )
+            else:
+                print "do not use pg", float(best_pg.get_value("h0_score"))
                 
         if verbose:
             print "peptide (bayes)", mpep.getAllPeptides()[0].get_id()
