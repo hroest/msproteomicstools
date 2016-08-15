@@ -20,12 +20,11 @@ install:
   #   still too old for the newest rpy2.
   #   However, for Python 3.4 / 3.5 the older version of rpy2 wont work
   #   (we thus disable the tests).
-  - pip install rpy2==2.2.5
-  - pip install -U statsmodels
+  - pip install rpy2
   - travis_retry python setup.py develop
 script: 
   - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then nosetests -w test/; fi
   - if [[ $TRAVIS_PYTHON_VERSION == 3.3* ]]; then nosetests -w test/; fi
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.4* ]]; then nosetests -a '!rpy2' -w test/; fi
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.5* ]]; then nosetests -a '!rpy2' -w test/; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.4* ]]; then nosetests -w test/; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.5* ]]; then nosetests -w test/; fi
 cache: pip
