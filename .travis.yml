@@ -20,7 +20,7 @@ install:
   #   still too old for the newest rpy2.
   #   However, for Python 3.4 / 3.5 the older version of rpy2 wont work
   #   (we thus disable the tests).
-  - pip install rpy2
+  - pip install rpy2==2.3.9
   - travis_retry python setup.py develop
 script: 
   - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then nosetests -w test/; fi
