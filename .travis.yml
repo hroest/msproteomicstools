@@ -1,14 +1,10 @@
 language: python
 python:
   - "2.7"
-  - "2.7_with_system_site_packages"
-  # - "3.2" # no rpy2 or biopython support for Python3
   - "3.3"
   - "3.4"
 before_install:
  - sudo apt-get update
- - sudo apt-get install -qq python-numpy python-scipy python-rpy2 python-lxml 
- - sudo apt-get install -qq python-biopython python-xlwt python-scikits-learn python-scikits.statsmodels
  - git clone https://github.com/hroest/scikit-datasmooth.git
  - "cd scikit-datasmooth && python setup.py install && cd .."
 install:
