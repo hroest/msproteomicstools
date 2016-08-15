@@ -6,6 +6,7 @@ python:
   - "3.5"
 before_install:
  - sudo apt-get update
+ - sudo apt-get install -qq r-base
  - git clone https://github.com/hroest/scikit-datasmooth.git
  - "cd scikit-datasmooth && python setup.py install && cd .."
 install:
@@ -15,6 +16,8 @@ install:
   #   For Ubuntu 12.04, we have only R 2.x available and thus need an older rpy2
   #   version (2.2.5). For Ubuntu 14.04, we have R 3.0.x available which is
   #   still too old for the newest rpy2.
+  #   However, for Python 3.4 / 3.5 the older version of rpy2 wont work
+  #   (we thus disable the tests).
   - pip install rpy2==2.2.5
   - pip install -U statsmodels
   - travis_retry python setup.py develop
@@ -22,4 +25,5 @@ script:
   - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then nosetests -w test/; fi
   - if [[ $TRAVIS_PYTHON_VERSION == 3.3* ]]; then nosetests -w test/; fi
   - if [[ $TRAVIS_PYTHON_VERSION == 3.4* ]]; then nosetests -a '!rpy2' -w test/; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.5* ]]; then nosetests -a '!rpy2' -w test/; fi
 cache: pip
