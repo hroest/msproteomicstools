@@ -124,7 +124,7 @@ def static_findAllPGForSeed(tree, tr_data, m, seed,
                     if verbose: 
                         print("  Using reference %s at RT %s to align peptide %s." % (ref_peptide, pg.get_normalized_retentiontime(), pep))
                     newPG, rt = static_findBestPGFromTemplate(pg.get_normalized_retentiontime(), pep, max_rt_diff_isotope, already_seen,
-            aligned_fdr_cutoff, fdr_cutoff, correctRT_using_pg, verbose)
+                                                              aligned_fdr_cutoff, fdr_cutoff, correctRT_using_pg, verbose)
                     isotopically_added_pg.append(newPG)
 
     if verbose: 
