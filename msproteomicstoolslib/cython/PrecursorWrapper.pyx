@@ -87,9 +87,9 @@ cdef class CyPrecursorWrapperOnly(object):
         deref(self.inst).sequence_ = libcpp_string(<char*> p)
 
     def set_decoy(self, bytes decoy):
-        if decoy in ["FALSE", "False", "0"]:
+        if decoy in [b"FALSE", b"False", b"0"]:
             deref(self.inst).decoy = False
-        elif decoy in ["TRUE", "True", "1"]:
+        elif decoy in [b"TRUE", b"True", b"1"]:
             deref(self.inst).decoy = True
         else:
             raise Exception("Unknown decoy classifier '%s', please check your input data!" % decoy)
