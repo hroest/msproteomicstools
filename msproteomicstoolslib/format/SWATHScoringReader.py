@@ -163,10 +163,10 @@ class SWATHScoringReader:
 
         for this_row in reader:
             if already_aligned:
-                runid = this_row[header_dict[self.aligned_run_id_name]]
+                runid = this_row[header_dict[self.aligned_run_id_name]].encode("ascii")
             else:
-                runnr = this_row[header_dict[self.run_id_name]]
-                runid = runnr + "_" + str(file_nr)
+                runnr = this_row[header_dict[self.run_id_name]].encode("ascii")
+                runid = runnr + b"_" + str(file_nr).encode("ascii")
 
             current_run = [r for r in runs if r.get_id() == runid]
             # check if we have a new run
@@ -264,24 +264,24 @@ class OpenSWATH_SWATHScoringReader(SWATHScoringReader):
         if "align_clusterid" in run.header_dict and self.read_cluster_id:
             cluster_id = int(this_row[run.header_dict["align_clusterid"]])
 
-        trgr_id = this_row[run.header_dict[unique_peakgroup_id_name]]
-        unique_peakgroup_id = this_row[run.header_dict[unique_peakgroup_id_name]]
-        sequence = this_row[run.header_dict[self.sequence_col]]
+        trgr_id = this_row[run.header_dict[unique_peakgroup_id_name]].encode("ascii")
+        unique_peakgroup_id = this_row[run.header_dict[unique_peakgroup_id_name]].encode("ascii")
+        sequence = this_row[run.header_dict[self.sequence_col]].encode("ascii")
         peptide_group_label = trgr_id
 
         if self.peptide_group_label_name in run.header_dict: 
-            peptide_group_label = this_row[run.header_dict[self.peptide_group_label_name]]
+            peptide_group_label = this_row[run.header_dict[self.peptide_group_label_name]].encode("ascii")
 
         # Attributes that only need to be present in strict mode
         diff_from_assay_seconds = -1
         fdr_score = -1
-        protein_name = "NA"
+        protein_name = b"NA"
         thisid = -1
         try:
             fdr_score = float(this_row[run.header_dict[fdr_score_name]])
             #fdr_score = 0.0001
-            protein_name = this_row[run.header_dict[protein_id_col]]
-            thisid = this_row[run.header_dict[unique_feature_id_name]]
+            protein_name = this_row[run.header_dict[protein_id_col]].encode("ascii")
+            thisid = this_row[run.header_dict[unique_feature_id_name]].encode("ascii")
             diff_from_assay_seconds = float(this_row[run.header_dict[diff_from_assay_in_sec_name]])
             d_score = float(this_row[run.header_dict[dscore_name]])
             #d_score = 2
@@ -294,7 +294,7 @@ class OpenSWATH_SWATHScoringReader(SWATHScoringReader):
         if intensity_name in run.header_dict:
             intensity = float(this_row[run.header_dict[intensity_name]])
         if "decoy" in run.header_dict:
-            decoy = this_row[run.header_dict[decoy_name]]
+            decoy = this_row[run.header_dict[decoy_name]].encode("ascii")
 
         # If the peptide does not yet exist, generate it
         if not run.hasPrecursor(peptide_group_label, trgr_id):
