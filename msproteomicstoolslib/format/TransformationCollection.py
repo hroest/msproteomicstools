@@ -249,7 +249,7 @@ class TransformationCollection():
           return
 
       f = open(filename, "w")
-      f.write("#Transformation Data\t%s\tto\t%s\treference_id\t%s\n" % (s_from, s_to, self._reference_run_id) )
+      f.write("#Transformation Data\t%s\tto\t%s\treference_id\t%s\n" % (s_from.decode(), s_to.decode(), self._reference_run_id.decode()) )
       if s_from in self._transformed_data \
          and s_to in self._transformed_data[s_from]:
           tr = self._transformed_data[s_from][s_to]
@@ -276,7 +276,7 @@ class TransformationCollection():
       s_to = header[3]
       if self._reference_run_id is None:
         self._reference_run_id = header[5].strip()
-      assert self._reference_run_id == header[5].strip()
+      assert self._reference_run_id.decode() == header[5].strip()
       data1 = []
       data2 = []
       transformed_data = []
