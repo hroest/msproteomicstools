@@ -434,8 +434,8 @@ class Peakview_SWATHScoringReader(SWATHScoringReader):
         run_id_name = "Sample"
         protein_id_col = "Protein"
         sequence_col = "Peptide"
-        unique_feature_id_name = "id" # does not exist!!!
-        decoy = "FALSE"
+        unique_feature_id_name = b"id" # does not exist!!!
+        decoy = b"FALSE"
         intensity_name = "MaxPeak.Intensity"
 
         diff_from_assay_in_sec_name = "empirical_iRT"
@@ -458,10 +458,10 @@ class Peakview_SWATHScoringReader(SWATHScoringReader):
             # what to do here!? 
             return
 
-        protein_name = this_row[run.header_dict[protein_id_col]]
-        sequence = this_row[run.header_dict[sequence_col]]
-        trgr_id = this_row[run.header_dict[unique_peakgroup_id_name]]
-        unique_peakgroup_id = this_row[run.header_dict[unique_peakgroup_id_name]]
+        protein_name = this_row[run.header_dict[protein_id_col]].encode("ascii")
+        sequence = this_row[run.header_dict[sequence_col]].encode("ascii")
+        trgr_id = this_row[run.header_dict[unique_peakgroup_id_name]].encode("ascii")
+        unique_peakgroup_id = this_row[run.header_dict[unique_peakgroup_id_name]].encode("ascii")
         intensity = float(this_row[run.header_dict[intensity_name]])
         #print run.header_dict
         #print run.header_dict["Score"]
@@ -472,7 +472,7 @@ class Peakview_SWATHScoringReader(SWATHScoringReader):
 
         diff_from_assay_seconds = float(this_row[run.header_dict[diff_from_assay_in_sec_name]])
         if "decoy" in run.header_dict:
-            decoy = this_row[run.header_dict[decoy_name]]
+            decoy = this_row[run.header_dict[decoy_name]].encode("ascii")
         run_id = this_row[run.header_dict[run_id_name]]
 
         # If the peptide does not yet exist, generate it
