@@ -542,7 +542,7 @@ def analyze_multipeptide_cluster(current_mpep, cnt, new_exp, swath_chromatograms
 
                 # Skip if we should not extract from this run
                 if not onlyExtractFromRun is None:
-                    if onlyExtractFromRun != rid:
+                    if onlyExtractFromRun != rid.decode():
                         continue
 
                 cnt.imputations += 1
