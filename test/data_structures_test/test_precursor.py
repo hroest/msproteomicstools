@@ -78,15 +78,15 @@ class TestUnitPrecursor(unittest.TestCase):
         self.assertEqual(p.get_id(), "precursor_2")
 
     def test_get_decoy(self):
-        p = precursor.Precursor("precursor_2", [])
+        p = precursor.Precursor(b"precursor_2", [])
         self.assertFalse(p.get_decoy())
-        p.set_decoy("TRUE")
+        p.set_decoy(b"TRUE")
         self.assertTrue(p.get_decoy())
-        p.set_decoy("FALSE")
+        p.set_decoy(b"FALSE")
         self.assertFalse(p.get_decoy())
-        p.set_decoy("1")
+        p.set_decoy(b"1")
         self.assertTrue(p.get_decoy())
-        p.set_decoy("0")
+        p.set_decoy(b"0")
         self.assertFalse(p.get_decoy())
 
         self.assertRaises(Exception, p.set_decoy, "dummy")
