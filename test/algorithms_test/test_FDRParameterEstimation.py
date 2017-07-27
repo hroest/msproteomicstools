@@ -83,7 +83,7 @@ def prepareData(nr_peps=15, nr_targ=None):
             # A target peptide
             label = "target_pep_%s" % j
             p = precursor.Precursor(label, runs[i] )
-            p.set_decoy("FALSE")
+            p.set_decoy(b"FALSE")
             pg_tuple = ("id_%s" % ids, 1.0/j, 100, 10000)
             p.add_peakgroup_tpl(pg_tuple, "target_pep_%s" % j, -1)
             prgr = precursor_group.PrecursorGroup(label, runs[i])
@@ -94,7 +94,7 @@ def prepareData(nr_peps=15, nr_targ=None):
             # A decoy peptide
             label = "decoy_pep_%s" % j
             p = precursor.Precursor(label, runs[i] )
-            p.set_decoy("TRUE")
+            p.set_decoy(b"TRUE")
             pg_tuple = ("id_%s" % ids, 1.0/j, 100, 10000)
             p.add_peakgroup_tpl(pg_tuple, "decoy_pep_%s" % j, -1)
             prgr = precursor_group.PrecursorGroup(label, runs[i])
@@ -113,7 +113,7 @@ def prepareData(nr_peps=15, nr_targ=None):
         for i in range(nr_runs):
             label = "target_pep_good_%s" % j
             p = precursor.Precursor(label, runs[i] )
-            p.set_decoy("FALSE")
+            p.set_decoy(b"FALSE")
             pg_tuple = ("id_%s" % ids, 0.01/j, 100, 10000)
             p.add_peakgroup_tpl(pg_tuple, "target_pep_good_%s" % j, -1)
             prgr = precursor_group.PrecursorGroup(label, runs[i])
