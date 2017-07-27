@@ -30,25 +30,20 @@ cdef class CyPrecursorGroup(object):
     def __str__(self):
         return "PrecursorGroup %s" % (self.getPeptideGroupLabel())
 
-    ### def __lt__(self, other):
-
-    ###     if self.run_.get_id() == other.run_.get_id():
-    ###         return self.getPeptideGroupLabel() > other.getPeptideGroupLabel()
-    ###     else:
-    ###         return self.run_.get_id() > other.run_.get_id()
+    ## def __richcmp__(CyPrecursorGroup self, CyPrecursorGroup other, op):
+    ##     """Ref: http://docs.cython.org/src/userguide/special_methods.html#rich-comparisons"""
+    ##     if op == 0:
+    ##         if self.run_.get_id() == other.run_.get_id():
+    ##             return self.getPeptideGroupLabel() > other.getPeptideGroupLabel()
+    ##         else:
+    ##           return self.run_.get_id() > other.run_.get_id()
+    ##     else:
+    ##       err_msg = "op {0} isn't implemented yet".format(op)
+    ##       raise NotImplementedError(err_msg)
 
     def __iter__(self):
-        ## # print ("Cy - iter through pre")
-        ## for precursor in self.precursors_:
-        ##     print ("Will iterate and provide ", type(precursor))
-
-        # print ("Cy - iter through pre")
         for precursor in self.precursors_:
-            ### print ("Cy - test1 ")
-            ### print (type(precursor))
             yield precursor
-            ## print ("Cy - test2 ")
-        # print ("Cy -- done")
 
     def __classInvariant__(self):
         if len(self.precursors_) > 0:
