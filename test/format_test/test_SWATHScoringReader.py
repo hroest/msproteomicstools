@@ -42,10 +42,10 @@ import msproteomicstoolslib.format.SWATHScoringReader as reader
 
 def doTest(self, runs):
     self.assertEqual(len(runs), 4)
-    self.assertEqual(runs[0].get_id(), "0_0")
-    self.assertEqual(runs[1].get_id(), "1_0")
-    self.assertEqual(runs[2].get_id(), "2_0")
-    self.assertEqual(runs[3].get_id(), "3_0")
+    self.assertEqual(runs[0].get_id(), b"0_0")
+    self.assertEqual(runs[1].get_id(), b"1_0")
+    self.assertEqual(runs[2].get_id(), b"2_0")
+    self.assertEqual(runs[3].get_id(), b"3_0")
 
     self.assertEqual(runs[0].get_openswath_filename(), "split_hroest_K120808_combined.featureXML")
     self.assertIsNone(runs[0].get_aligned_filename())
@@ -55,8 +55,8 @@ def doTest(self, runs):
     self.assertEqual(len(list(runs[2])), 1)
     self.assertEqual(len(list(runs[3])), 1)
 
-    self.assertIsNotNone(runs[0].getPrecursorGroup("17365_TLDTAAEKIVETATR/3_run0"))
-    self.assertIsNone(runs[0].getPrecursorGroup("19365_TLDTAAEKIVETATR/3_run0"))
+    self.assertIsNotNone(runs[0].getPrecursorGroup(b"17365_TLDTAAEKIVETATR/3_run0"))
+    self.assertIsNone(runs[0].getPrecursorGroup(b"19365_TLDTAAEKIVETATR/3_run0"))
 
 class TestUnitScoringReaderOpenSWATH(unittest.TestCase):
 
@@ -103,7 +103,7 @@ class TestUnitScoringReaderOpenSWATH(unittest.TestCase):
         r = reader.SWATHScoringReader.newReader([filename], "openswath", "minimal")
         runs = r.parse_files(False)
 
-        prgroup = runs[2].getPrecursorGroup("21517_C[160]NVVISGGTGSGK/2_run0 0 0")
+        prgroup = runs[2].getPrecursorGroup(b"21517_C[160]NVVISGGTGSGK/2_run0 0 0")
         # The precursor is now the one and only precursor present
         self.assertEqual(len(prgroup.getAllPrecursors()), 1)
         p = prgroup.getAllPrecursors()[0]
@@ -134,7 +134,7 @@ class TestUnitScoringReaderPeakView(unittest.TestCase):
         runs = r.parse_files(False)
 
         self.assertEqual(len(runs), 5)
-        self.assertEqual(runs[0].get_id(), 'ywu_L121218_002_SW.wiff (sample 1)_0')
+        self.assertEqual(runs[0].get_id(), b'ywu_L121218_002_SW.wiff (sample 1)_0')
 
         self.assertIsNone(runs[0].get_openswath_filename())
         self.assertIsNone(runs[0].get_aligned_filename())
@@ -145,9 +145,9 @@ class TestUnitScoringReaderPeakView(unittest.TestCase):
         self.assertEqual(len(list(runs[3])), 2)
         self.assertEqual(len(list(runs[4])), 2)
 
-        self.assertIsNotNone(runs[0].getPrecursorGroup('LIGNMALLPLR+2'))
-        self.assertIsNotNone(runs[0].getPrecursorGroup('LIGNMALLPLR+3'))
-        self.assertIsNone(runs[0].getPrecursorGroup('LIGNMALLPLR+4'))
+        self.assertIsNotNone(runs[0].getPrecursorGroup(b'LIGNMALLPLR+2'))
+        self.assertIsNotNone(runs[0].getPrecursorGroup(b'LIGNMALLPLR+3'))
+        self.assertIsNone(runs[0].getPrecursorGroup(b'LIGNMALLPLR+4'))
 
 class TestUnitScoringReadermProphet(unittest.TestCase):
 
