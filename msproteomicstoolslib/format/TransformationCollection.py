@@ -272,10 +272,11 @@ class TransformationCollection():
       if header[0].startswith( "#Transformation Null" ):
           # read the (or a) null transformation
           return
-      s_from = header[1]
-      s_to = header[3]
+      s_from = header[1].encode("ascii")
+      s_to = header[3].encode("ascii")
       if self._reference_run_id is None:
-        self._reference_run_id = header[5].strip()
+        self._reference_run_id = header[5].strip().encode("ascii")
+
       assert self._reference_run_id.decode() == header[5].strip()
       data1 = []
       data2 = []
