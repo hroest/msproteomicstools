@@ -56,7 +56,7 @@ def write_out_matrix_file(matrix_outfile, allruns, multipeptides, fraction_neede
     run_ids = [r.get_id() for r in allruns]
     header = ["Peptide", "Protein"]
     for r in allruns:
-        fname = "%s_%s" % (os.path.basename(r.orig_filename), r.get_id() )
+        fname = "%s_%s" % (os.path.basename(r.orig_filename), r.get_id().decode() )
         header.extend(["Intensity_%s" % fname])
         if style == "RT" or style == 'full':
             header.extend(["RT_%s" % fname])
@@ -95,7 +95,7 @@ def write_out_matrix_file(matrix_outfile, allruns, multipeptides, fraction_neede
                 continue
 
             # Write first two columns of the matrix
-            for i in [trgr_id, multipep.find_best_peptide_pg().getPeptide().getProteinName()]:
+            for i in [trgr_id.decode(), multipep.find_best_peptide_pg().getPeptide().getProteinName().decode()]:
                 matrix_writer.write(i)
 
             # Write other columns (one or two per run, depending on format)
