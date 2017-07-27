@@ -83,15 +83,15 @@ class TestAlignment(unittest.TestCase):
                 helper.addDataToTrafo(self.tr_data, run_0, run_1, spl_aligner, self.multipeptides, "linear", 30)
 
         # Select two interesting peptides
-        pepname = "21517_C[160]NVVISGGTGSGK/2_run0 0 0"
+        pepname = b"21517_C[160]NVVISGGTGSGK/2_run0 0 0"
         self.current_mpep1 = [m for m in self.multipeptides if m.getAllPeptides()[0].get_id() == pepname][0]
 
-        pepname = "26471_GYEDPPAALFR/2_run0 0 0"
+        pepname = b"26471_GYEDPPAALFR/2_run0 0 0"
         self.current_mpep2 = [m for m in self.multipeptides if m.getAllPeptides()[0].get_id() == pepname][0]
 
     def test_shortestDistance_1(self):
 
-        rid = "0_0"
+        rid = b"0_0"
         spl_aligner = SplineAligner(self.initial_alignment_cutoff)
         dist_matrix = getDistanceMatrix(self.new_exp, self.multipeptides, spl_aligner)
 
@@ -102,15 +102,15 @@ class TestAlignment(unittest.TestCase):
             rid, self.tr_data, dist_matrix, rmap)
 
         # Direct transformation from 0_2 to 0_0
-        self.assertAlmostEqual(border_l, self.tr_data.getTrafo("0_2", "0_0").predict([ 240.0 ])[0])
-        self.assertAlmostEqual(border_r, self.tr_data.getTrafo("0_2", "0_0").predict([ 260.0 ])[0])
+        self.assertAlmostEqual(border_l, self.tr_data.getTrafo(b"0_2", b"0_0").predict([ 240.0 ])[0])
+        self.assertAlmostEqual(border_r, self.tr_data.getTrafo(b"0_2", b"0_0").predict([ 260.0 ])[0])
 
         self.assertAlmostEqual(border_l, 77.992277992277934)
         self.assertAlmostEqual(border_r, 84.1698841699)
 
     def test_shortestPath_1(self):
 
-        rid = "0_0"
+        rid = b"0_0"
         spl_aligner = SplineAligner(self.initial_alignment_cutoff)
         tree = MinimumSpanningTree(getDistanceMatrix(self.new_exp, self.multipeptides, spl_aligner))
         tree_mapped = [(self.new_exp.runs[a].get_id(), self.new_exp.runs[b].get_id()) for a,b in tree]
@@ -121,16 +121,16 @@ class TestAlignment(unittest.TestCase):
             rid, self.tr_data, tree_mapped)
 
         # Direct transformation from 0_2 to 0_0
-        self.assertAlmostEqual(border_l, self.tr_data.getTrafo("0_2", "0_0").predict([ 240.0 ])[0])
-        self.assertAlmostEqual(border_r, self.tr_data.getTrafo("0_2", "0_0").predict([ 260.0 ])[0])
+        self.assertAlmostEqual(border_l, self.tr_data.getTrafo(b"0_2", b"0_0").predict([ 240.0 ])[0])
+        self.assertAlmostEqual(border_r, self.tr_data.getTrafo(b"0_2", b"0_0").predict([ 260.0 ])[0])
 
         self.assertAlmostEqual(border_l, 77.992277992277934)
         self.assertAlmostEqual(border_r, 84.1698841699)
 
     def test_reference_1(self):
 
-        rid = "0_0"
-        self.tr_data.reference = "0_2" # set reference run to 0_2
+        rid = b"0_0"
+        self.tr_data.reference = b"0_2" # set reference run to 0_2
 
         spl_aligner = SplineAligner(self.initial_alignment_cutoff)
         tree = MinimumSpanningTree(getDistanceMatrix(self.new_exp, self.multipeptides, spl_aligner))
@@ -142,8 +142,8 @@ class TestAlignment(unittest.TestCase):
             rid, self.tr_data, "median")
 
         # Direct transformation from 0_2 to 0_0
-        self.assertAlmostEqual(border_l, self.tr_data.getTrafo("0_2", "0_0").predict([ 240.0 ])[0])
-        self.assertAlmostEqual(border_r, self.tr_data.getTrafo("0_2", "0_0").predict([ 260.0 ])[0])
+        self.assertAlmostEqual(border_l, self.tr_data.getTrafo(b"0_2", b"0_0").predict([ 240.0 ])[0])
+        self.assertAlmostEqual(border_r, self.tr_data.getTrafo(b"0_2", b"0_0").predict([ 260.0 ])[0])
 
         self.assertAlmostEqual(border_l, 77.992277992277934)
         self.assertAlmostEqual(border_r, 84.1698841699)
@@ -162,7 +162,7 @@ class TestAlignment(unittest.TestCase):
 
     def test_shortestDistance_2(self):
 
-        rid = "0_1"
+        rid = b"0_1"
         spl_aligner = SplineAligner(self.initial_alignment_cutoff)
         dist_matrix = getDistanceMatrix(self.new_exp, self.multipeptides, spl_aligner)
 
@@ -173,15 +173,15 @@ class TestAlignment(unittest.TestCase):
             rid, self.tr_data, dist_matrix, rmap)
 
         # Shortest distance means that we transformed directly from 0_2 to 0_1
-        self.assertAlmostEqual(border_l, self.tr_data.getTrafo("0_2", "0_1").predict([ 240.0 ])[0])
-        self.assertAlmostEqual(border_r, self.tr_data.getTrafo("0_2", "0_1").predict([ 260.0 ])[0])
+        self.assertAlmostEqual(border_l, self.tr_data.getTrafo(b"0_2", b"0_1").predict([ 240.0 ])[0])
+        self.assertAlmostEqual(border_r, self.tr_data.getTrafo(b"0_2", b"0_1").predict([ 260.0 ])[0])
 
         self.assertAlmostEqual(border_l, 168.03088803088787)
         self.assertAlmostEqual(border_r, 183.32046332)
 
     def test_shortestPath_2(self):
 
-        rid = "0_1"
+        rid = b"0_1"
         spl_aligner = SplineAligner(self.initial_alignment_cutoff)
         tree = MinimumSpanningTree(getDistanceMatrix(self.new_exp, self.multipeptides, spl_aligner))
         tree_mapped = [(self.new_exp.runs[a].get_id(), self.new_exp.runs[b].get_id()) for a,b in tree]
@@ -192,15 +192,15 @@ class TestAlignment(unittest.TestCase):
             rid, self.tr_data, tree_mapped)
 
         # Shortest path means that we transformed from 0_2 to 0_1
-        self.assertAlmostEqual(border_l, self.tr_data.getTrafo("0_2", "0_1").predict( [ 240.0 ] ))
-        self.assertAlmostEqual(border_r, self.tr_data.getTrafo("0_2", "0_1").predict( [ 260.0 ] ))
+        self.assertAlmostEqual(border_l, self.tr_data.getTrafo(b"0_2", b"0_1").predict( [ 240.0 ] ))
+        self.assertAlmostEqual(border_r, self.tr_data.getTrafo(b"0_2", b"0_1").predict( [ 260.0 ] ))
 
         self.assertAlmostEqual(border_l, 168.03088803088787)
         self.assertAlmostEqual(border_r, 183.32046332046318)
 
     def test_shortestPath_3(self):
 
-        rid = "0_1"
+        rid = b"0_1"
         spl_aligner = SplineAligner(self.initial_alignment_cutoff)
         tree = MinimumSpanningTree(getDistanceMatrix(self.new_exp, self.multipeptides, spl_aligner))
         tree_mapped = [(self.new_exp.runs[a].get_id(), self.new_exp.runs[b].get_id()) for a,b in tree]
@@ -212,12 +212,12 @@ class TestAlignment(unittest.TestCase):
 
         # Shortest path means that we transformed from 0_0 to 0_2 and then to 0_1
         self.assertAlmostEqual(border_l, 
-                               self.tr_data.getTrafo("0_2", "0_1").predict(
-                                 self.tr_data.getTrafo("0_0", "0_2").predict([ 600 ]) 
+                               self.tr_data.getTrafo(b"0_2", b"0_1").predict(
+                               self.tr_data.getTrafo(b"0_0", b"0_2").predict([ 600 ]) 
                                ))
         self.assertAlmostEqual(border_r, 
-                               self.tr_data.getTrafo("0_2", "0_1").predict(
-                                 self.tr_data.getTrafo("0_0", "0_2").predict([ 700 ]) 
+                               self.tr_data.getTrafo(b"0_2", b"0_1").predict(
+                                 self.tr_data.getTrafo(b"0_0", b"0_2").predict([ 700 ]) 
                                ))
 
         self.assertAlmostEqual(border_l, 1452.355212355212)
@@ -225,8 +225,8 @@ class TestAlignment(unittest.TestCase):
 
     def test_reference_2(self):
 
-        rid = "0_1"
-        self.tr_data.reference = "0_0" # set reference run to 0_0
+        rid = b"0_1"
+        self.tr_data.reference = b"0_0" # set reference run to 0_0
 
         spl_aligner = SplineAligner(self.initial_alignment_cutoff)
         tree = MinimumSpanningTree(getDistanceMatrix(self.new_exp, self.multipeptides, spl_aligner))
@@ -239,12 +239,12 @@ class TestAlignment(unittest.TestCase):
 
         # Reference 0_0 means that we transformed from 0_2 to 0_0 and then to 0_1
         self.assertAlmostEqual(border_l, 
-                               self.tr_data.getTrafo("0_0", "0_1").predict(
-                                 self.tr_data.getTrafo("0_2", "0_0").predict([ 240.0 ]) 
+                               self.tr_data.getTrafo(b"0_0", b"0_1").predict(
+                               self.tr_data.getTrafo(b"0_2", b"0_0").predict([ 240.0 ]) 
                                ))
         self.assertAlmostEqual(border_r, 
-                               self.tr_data.getTrafo("0_0", "0_1").predict(
-                                 self.tr_data.getTrafo("0_2", "0_0").predict([ 260.0 ]) 
+                               self.tr_data.getTrafo(b"0_0", b"0_1").predict(
+                               self.tr_data.getTrafo(b"0_2", b"0_0").predict([ 260.0 ]) 
                                ))
 
         self.assertAlmostEqual(border_l, 187.18146718146681)
