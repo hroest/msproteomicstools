@@ -94,7 +94,7 @@ class Multipeptide(object):
 
         :rtype: list(:class:`.PrecursorGroup`): All Precursor group from the corresponding run
         """
-        return sorted(self._peptides.values())
+        return sorted(self._peptides.values(), key=repr)
 
     def hasPrecursorGroup(self, runid):
         """
