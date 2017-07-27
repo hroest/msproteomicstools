@@ -418,6 +418,9 @@ def analyze_multipeptides(new_exp, multipeptides, swath_chromatograms,
     This function will update the input multipeptides and add peakgroups, imputing missing values 
     """
 
+    # Python3 check
+    assert onlyExtractFromRun is None or isinstance(onlyExtractFromRun, str)
+
     # Go through all aligned peptides
     class CounterClass(object): pass
     cnt = CounterClass()
