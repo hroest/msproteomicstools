@@ -321,7 +321,7 @@ def fix_input_fnames(options, runs):
 
     # Apply the fixed filenames
     for r in runs:
-        r.orig_filename = inputfile_mapping[ r.get_id() ]
+        r.orig_filename = inputfile_mapping[ r.get_id().decode() ]
 
 def main(options):
     import time
