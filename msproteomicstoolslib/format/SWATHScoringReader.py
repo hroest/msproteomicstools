@@ -357,7 +357,7 @@ class mProphet_SWATHScoringReader(SWATHScoringReader):
         protein_id_col = "protein"
         sequence_col = "transition_group_pepseq"
         intensity_name = "log10_max_apex_intensity"
-        decoy = "FALSE"
+        decoy = b"FALSE"
 
         # use the aligned retention time if it is available!
         if "aligned_rt" in run.header_dict: 
@@ -374,16 +374,16 @@ class mProphet_SWATHScoringReader(SWATHScoringReader):
         thisid = str(uuid.uuid1() )
         # thisid = this_row[run.header_dict[unique_feature_id_name]]
 
-        trgr_id = this_row[run.header_dict[unique_peakgroup_id_name]]
-        protein_name = this_row[run.header_dict[protein_id_col]]
-        sequence = this_row[run.header_dict[sequence_col]]
+        trgr_id = this_row[run.header_dict[unique_peakgroup_id_name]].encode("ascii")
+        protein_name = this_row[run.header_dict[protein_id_col]].encode("ascii")
+        sequence = this_row[run.header_dict[sequence_col]].encode("ascii")
         fdr_score = float(this_row[run.header_dict[fdr_score_name]])
-        unique_peakgroup_id = this_row[run.header_dict[unique_peakgroup_id_name]]
+        unique_peakgroup_id = this_row[run.header_dict[unique_peakgroup_id_name]].encode("ascii")
         intensity = -1
         if intensity_name in run.header_dict:
             intensity = float(this_row[run.header_dict[intensity_name]])
         if "decoy" in run.header_dict:
-            decoy = this_row[run.header_dict[decoy_name]]
+            decoy = this_row[run.header_dict[decoy_name]].encode("ascii")
         run_id = this_row[run.header_dict[run_id_name]]
 
         # If the peptide does not yet exist, generate it
