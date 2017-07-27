@@ -275,7 +275,14 @@ class Experiment(MRExperiment):
         input_basename = os.path.basename(current_run.orig_filename)
         fn = os.path.splitext(input_basename)[0]
         dirname = os.path.dirname(current_run.orig_filename)
+
+        if current_id is not None:
+            current_id = current_id.decode()
+        if ref_id is not None:
+            ref_id = ref_id.decode()
+
         filename = os.path.join(dirname, "%s-%s-%s.tr" % (fn, current_id, ref_id) )
+
         return filename
 
     def _write_trafo_files(self):
