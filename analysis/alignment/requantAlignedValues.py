@@ -265,7 +265,7 @@ def runSingleFileImputation(options, peakgroups_file, mzML_file, method, is_test
     if method == "singleClosestRun":
         tree_mapped = None
 
-        run_1 = [r for r in new_exp.runs if r.get_id() == rid][0]
+        run_1 = [r for r in new_exp.runs if r.get_id().decode() == rid][0]
         dist_matrix = getDistanceMatrix(new_exp, multipeptides, spl_aligner, singleRowId=run_1.get_id())
         print("Distance matrix took %ss" % (time.time() - start) )
 
@@ -377,10 +377,10 @@ def runImputeValues(options, peakgroups_file, trafo_fnames, is_test):
         run_ids = [r.get_id() for r in new_exp.runs]
         for rid in run_ids:
             # Create the cache for run "rid" and then only extract peakgroups from this run
-            swath_chromatograms.createRunCache(rid)
+            swath_chromatograms.createRunCache(rid.decode())
             multipeptides = analyze_multipeptides(new_exp, multipeptides, 
                 swath_chromatograms, transformation_collection_, options.border_option, 
-                onlyExtractFromRun=rid, disable_isotopic_transfer=options.disable_isotopic_transfer, is_test=is_test)
+                onlyExtractFromRun=rid.decode(), disable_isotopic_transfer=options.disable_isotopic_transfer, is_test=is_test)
     else:
         multipeptides = analyze_multipeptides(new_exp, multipeptides, swath_chromatograms,
             transformation_collection_, options.border_option, disable_isotopic_transfer=options.disable_isotopic_transfer, is_test=is_test)
@@ -598,7 +598,7 @@ def analyze_multipeptide_cluster(current_mpep, cnt, new_exp, swath_chromatograms
                         print("Managed to fill NA in run", current_run.get_id(), \
                           "with value", newpg.get_value("Intensity"), "/ borders", border_l, border_r)#, "for cluster", newpg.get_value("align_clusterid")
                     cnt.imputation_succ += 1
-                    transition_group_id = newpg.get_value("transition_group_id")
+                    transition_group_id = newpg.get_value("transition_group_id").encode("ascii")
                     try:
                         peptide_label = newpg.get_value("peptide_group_label")
                     except KeyError:
@@ -647,7 +647,7 @@ def integrate_chromatogram(template_pg, current_run, swath_chromatograms,
     Create a new peakgroup from the old pg and then store the integrated intensity.
     """
 
-    current_rid = current_run.get_id()
+    current_rid = current_run.get_id().decode()
     orig_filename = current_run.get_openswath_filename()
     aligned_filename = current_run.get_aligned_filename()
 
