@@ -397,19 +397,19 @@ class Experiment(MRExperiment):
                 header_dict[n] = i
 
               for row in reader:
-                  f_id = row[ header_dict[name_of_id_col]]
+                  f_id = row[ header_dict[name_of_id_col]].encode("ascii")
                   if f_id in selected_ids_dict:
                       # Check the "id" and "transition_group_id" field.
                       # Unfortunately the id can be non-unique, there we check both.
                       trgroup_id = selected_ids_dict[f_id].getPeptide().get_id()
-                      unique_peptide_id = row[ header_dict[name_of_trgr_col]]
+                      unique_peptide_id = row[ header_dict[name_of_trgr_col]].encode("ascii")
                       if unique_peptide_id == trgroup_id:
                           row_to_write = row
-                          row_to_write += [selected_ids_dict[f_id].getPeptide().getRunId(), f, selected_ids_dict[f_id].get_cluster_id()]
+                          row_to_write += [selected_ids_dict[f_id].getPeptide().getRunId().decode(), f, selected_ids_dict[f_id].get_cluster_id()]
                           # Replace run_id with the aligned id (align_runid) ->
                           # otherwise the run_id is not guaranteed to be unique 
                           if file_format == "openswath" : 
-                              row_to_write[ header_dict["run_id"]] = selected_ids_dict[f_id].getPeptide().getRunId()
+                              row_to_write[ header_dict["run_id"]] = selected_ids_dict[f_id].getPeptide().getRunId().decode()
                           writer.writerow(row_to_write)
 
         # 5. Write out the .tr transformation files
