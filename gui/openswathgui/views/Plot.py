@@ -34,6 +34,7 @@ $Maintainer: Hannes Roest$
 $Authors: Hannes Roest$
 --------------------------------------------------------------------------
 """
+from __future__ import print_function
 
 from PyQt4 import QtGui, Qt, QtCore
 from PyQt4.Qwt5 import QwtPlotItem
@@ -49,7 +50,7 @@ try:
     from guiqwt.styles import CurveParam, COLORS
     from guiqwt.transitional import QwtPlotItem
 except ImportError:
-    print "Could not import guiqwt, will try to use Qwt only."
+    print ("Could not import guiqwt, will try to use Qwt only.")
     have_guiqwt = False
     class CurveItem(object): pass
     class CurveDialog(object): 
@@ -59,7 +60,7 @@ except ImportError:
 try:
     QtGui.QStaticText("Test")
 except AttributeError:
-    print "Could not find QtGui.QStaticText - maybe your version of Qt and PyQt is too old? Will not be able to display text on top of the graphs."
+    print ("Could not find QtGui.QStaticText - maybe your version of Qt and PyQt is too old? Will not be able to display text on top of the graphs.")
 
 USE_ANTIALIASING = True
 
@@ -175,7 +176,7 @@ class GuiQwtMultiLinePlot(CurveDialog):
         self.myranges.append( self.myrange )
 
     def rangeChanged(self, data):
-        print "range changed"
+        print ("range changed")
 
     def set_x_limits(self, xmin, xmax):
         self.get_plot().set_axis_limits('bottom', xmin, xmax)
