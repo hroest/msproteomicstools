@@ -55,6 +55,7 @@ class PrecursorGroup(object):
     __slots__ = ["peptide_group_label_", "run_", "precursors_"]
 
     def __init__(self, peptide_group_label, run):
+        import asdasfasdf
         self.peptide_group_label_ = peptide_group_label  
         self.run_ = run
         self.precursors_ = []

@@ -21,13 +21,15 @@ cdef extern from "precursor.h":
         bool decoy
         libcpp_vector[c_peakgroup] peakgroups
         libcpp_string curr_id_
-        libcpp_string protein_name_
-        libcpp_string sequence_
+        # libcpp_string protein_name_
+        # libcpp_string sequence_
         libcpp_string run_id_
-        libcpp_string precursor_group_id
+        # libcpp_string precursor_group_id
 
         libcpp_string getRunId()
         libcpp_string get_id()
+        bool get_decoy()
+        void print_id()
 
         void add_peakgroup_tpl(c_peakgroup & pg, libcpp_string tpl_id, int cluster_id)
 

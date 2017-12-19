@@ -29,32 +29,46 @@ cdef class CyPrecursorWrapperOnly(object):
             del self.inst
 
     def __init__(self, str this_id, run, take_ownership=True):
-        cdef str runid = <str>run.get_id()
+        # print ("init CyPrecursorWrapperOnly", this_id, run)
+        cdef str runid
         if run is not None:
+            runid = <str>run.get_id()
             self.inst = new c_precursor(this_id, runid)
 
+        # print(" made new one with id ", this_id)
         if take_ownership: self.own_ptr = True
         else: self.own_ptr = False
+        # print ("init CyPrecursorWrapperOnly done", this_id, run)
 
     #
     ### Getters
     cdef libcpp_string get_id_c(self):
+        # return ""
         return deref(self.inst).curr_id_ 
 
     def get_id(self):
+        # return ""
+        return <str>( deref(self.inst).curr_id_ )
+
+    def get_pyid(self):
+        # return ""
         return <str>( deref(self.inst).curr_id_ )
 
     def get_decoy(self):
-        return ( deref(self.inst).decoy )
+        return False
+        # return ( deref(self.inst).decoy )
 
     def getSequence(self):
-        return <str>( deref(self.inst).sequence_ )
+        # return <str>( deref(self.inst).sequence_ )
+        return ""
 
     def getProteinName(self):
-        return <str>( deref(self.inst).protein_name_ )
+        # return <str>( deref(self.inst).protein_name_ )
+        return ""
 
     def getRunId(self):
         return <str>( deref(self.inst).run_id_ )
+        # return ""
 
     cdef libcpp_vector[c_peakgroup].iterator get_all_peakgroups_cy_begin(self):
         return deref(self.inst).peakgroups.begin()
@@ -68,21 +82,25 @@ cdef class CyPrecursorWrapperOnly(object):
     #
     ### Setters
     def setProteinName(self, str p):
-        deref(self.inst).protein_name_ = p
+        # deref(self.inst).protein_name_ = p
+        pass
 
     def setSequence(self, str p):
-        deref(self.inst).sequence_ = p
+        # deref(self.inst).sequence_ = p
+        pass
 
     def set_decoy(self, str decoy):
-        if decoy in ["FALSE", "False", "0"]:
-            deref(self.inst).decoy = False
-        elif decoy in ["TRUE", "True", "1"]:
-            deref(self.inst).decoy = True
-        else:
-            raise Exception("Unknown decoy classifier '%s', please check your input data!" % decoy)
+        pass
+        # if decoy in ["FALSE", "False", "0"]:
+        #     deref(self.inst).decoy = False
+        # elif decoy in ["TRUE", "True", "1"]:
+        #     deref(self.inst).decoy = True
+        # else:
+        #     raise Exception("Unknown decoy classifier '%s', please check your input data!" % decoy)
 
     def set_precursor_group(self, precursor_group):
-        deref(self.inst).precursor_group_id = <str>precursor_group.getPeptideGroupLabel()
+        import asdasdf
+        # deref(self.inst).precursor_group_id = <str>precursor_group.getPeptideGroupLabel()
 
     def add_peakgroup_tpl(self, pg_tuple, str tpl_id, int cluster_id=-1):
         """Adds a peakgroup to this precursor.
@@ -94,9 +112,20 @@ cdef class CyPrecursorWrapperOnly(object):
             3. intensity
             (4. d_score optional)
         """
+
         # Check that the peak group is added to the correct precursor
+        # print("print id")
+        # deref(self.inst).print_id()
+        # print("id %s" % deref(self.inst).get_id() )
+        # print("id %s" % self.get_id())
+        # print("id %s" % deref(self.inst).curr_id_ )
+        # print("id %s" % deref(self.inst).get_id() )
+        # print(self.get_id())
+        # print(self.get_id_c())
+        # print(self.get_pyid())
+        # print(tpl_id)
         if self.get_id() != tpl_id:
-            raise Exception("Cannot add a tuple to this precursor with a different id")
+            raise Exception("Cannot add a tuple to this precursor with a different id", self.get_id(), tpl_id)
 
         if len(pg_tuple) == 4:
             pg_tuple = pg_tuple + (None,)
@@ -105,10 +134,11 @@ cdef class CyPrecursorWrapperOnly(object):
         cdef c_peakgroup pg
         pg.fdr_score = pg_tuple[1]
         pg.normalized_retentiontime = pg_tuple[2]
-        pg.intensity_ = pg_tuple[3]
-        pg.dscore_ = pg_tuple[4]
+        # pg.intensity_ = pg_tuple[3]
+        # pg.dscore_ = pg_tuple[4]
         pg.cluster_id_ = cluster_id
-        pg.internal_id_ = libcpp_string(<char*> pg_tuple[0])
+        ## pg.internal_id_ = libcpp_string(<char*> pg_tuple[0])
+        pg.setInternalId( libcpp_string(<char*> pg_tuple[0]) )
         pg.precursor = self.inst
 
         deref(self.inst).add_peakgroup_tpl(pg, tpl_id, cluster_id)
@@ -217,6 +247,6 @@ cdef class CyPrecursorWrapperOnly(object):
         print ("memaddr: {0:x}".format(<long> self.inst) )
         cdef libcpp_vector[c_peakgroup].iterator it = deref(self.inst).peakgroups.begin()
         while it != deref(self.inst).peakgroups.end():
-            print (deref(it).internal_id_, " cl ", deref(it).cluster_id_, "memaddr: {0:x}".format(<long> address(deref(it))) )
+            print (deref(it).getInternalId(), " cl ", deref(it).cluster_id_, "memaddr: {0:x}".format(<long> address(deref(it))) )
             inc(it)
 

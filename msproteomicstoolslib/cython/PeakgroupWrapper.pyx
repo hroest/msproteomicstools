@@ -49,13 +49,15 @@ cdef class CyPeakgroupWrapperOnly(object):
         raise Exception("Cannot set in immutable object")
 
     def get_intensity(self):
-        return deref(self.inst).intensity_
+        # return deref(self.inst).intensity_
+        return 99
 
     def getPeptide(self):
         return self.peptide
 
     def get_dscore(self):
-        return deref(self.inst).dscore_
+        # return deref(self.inst).dscore_
+        return 7
 
     ## Select / De-select peakgroup
     def select_this_peakgroup(self):
@@ -100,5 +102,5 @@ cdef class CyPeakgroupWrapperOnly(object):
         # self.id_ = id_
 
     def get_feature_id(self):
-        return <str>(deref(self.inst).internal_id_)
+        return <str>(deref(self.inst).getInternalId())
 

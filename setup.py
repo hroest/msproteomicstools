@@ -2,6 +2,7 @@
 
 import os
 import numpy
+import setuptools
 from setuptools import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
@@ -40,12 +41,14 @@ if with_cython:
 	    cythonize("msproteomicstoolslib/algorithms/alignment/DataCacher.pyx", language="c++")[0]
 	    ]
 
+
 setup(name='msproteomicstools',
-      version='0.5.0',
+      version='0.6.0',
       packages = ['msproteomicstoolslib', 
                   "msproteomicstoolslib.algorithms",
                   "msproteomicstoolslib.cython",
                   "msproteomicstoolslib.algorithms.alignment",
+                  "msproteomicstoolslib.algorithms.graphs",
                   "msproteomicstoolslib.algorithms.shared",
                   "msproteomicstoolslib.algorithms.PADS",
                   "msproteomicstoolslib.data_structures",
@@ -100,3 +103,7 @@ setup(name='msproteomicstools',
       tests_require="nose",
       )
 
+print(setup)
+print(setuptools)
+import distutils.core
+print( distutils.core)

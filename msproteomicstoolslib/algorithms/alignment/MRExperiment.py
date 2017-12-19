@@ -41,7 +41,7 @@ from sys import stdout
 import csv, os
 import numpy
 from msproteomicstoolslib.algorithms.alignment.Multipeptide import Multipeptide
-from msproteomicstoolslib.format.SWATHScoringReader import Run
+# from msproteomicstoolslib.format.SWATHScoringReader import Run
 
 class MRExperiment(object):
     """
@@ -65,6 +65,19 @@ class MRExperiment(object):
         self.runs = []
         self.nr_ambiguous = -1
         self.nr_multiple_align = -1
+        self.all_precursor_groups_ = {}
+
+        useCython = True
+        try:
+            # print useCython
+            if useCython:
+                from msproteomicstoolslib.cython.data_structures import CyPrecursorGroup
+                self.PrecursorGroup = CyPrecursorGroup
+                # print self.PrecursorGroup
+            else:
+                self.PrecursorGroup = PrecursorGroup
+        except ImportError:
+            self.PrecursorGroup = PrecursorGroup
 
     def set_runs(self, runs):
         """Initialize with a set of runs.
@@ -153,3 +166,50 @@ class MRExperiment(object):
         # Return sorted multipeptides for consistency across all Python versions
         return(sorted(multipeptides, key=lambda x: str(x)))
 
+    def addPrecursor(self, precursor, peptide_group_label):
+        """
+        Add a new precursor to the experiment using a specific peptide label.
+
+        If the corresponding precursor group does not yet exist, a new
+        precursor group is created. Otherwise the precursor is added to the
+        precursor group.
+
+        Parameters
+        ----------
+        precursor : :class:`.CyPrecursor`,  :class:`.Precursor` or :class:`.GeneralPrecursor`
+            Precursor to be added (e.g. PEPT[+98]IDE/2)
+        peptide_group_label : str
+            Label of the corresponding peptide group (e.g. PEPTIDE)
+        """
+
+        if self.hasPrecursorGroup(peptide_group_label):
+            self.getPrecursorGroup(peptide_group_label).addPrecursor(precursor)
+        else:
+            prec_gr = self.PrecursorGroup(peptide_group_label, self)
+            prec_gr.addPrecursor(precursor)
+            self.all_precursor_groups_[peptide_group_label] = prec_gr
+
+    def getPrecursorGroup(self, peptide_group_label):
+        if self.hasPrecursorGroup(peptide_group_label):
+            return self.all_precursor_groups_[peptide_group_label] 
+        # this run has no peakgroup for that peptide
+        return None
+
+    def hasPrecursorGroup(self, peptide_group_label):
+        return peptide_group_label in self.all_precursor_groups_
+
+    def getPrecursor(self, peptide_group_label, trgr_id):
+        if self.hasPrecursor(peptide_group_label, trgr_id):
+            return self.getPrecursorGroup(peptide_group_label).getPrecursor(trgr_id)
+        else:
+            # print(" we dont have prec", peptide_group_label, trgr_id)
+            pass
+
+        return None
+
+    def hasPrecursor(self, peptide_group_label, trgr_id):
+        """
+        Whether precursor exists
+        """
+        return self.hasPrecursorGroup(peptide_group_label) and \
+                not self.getPrecursorGroup(peptide_group_label).getPrecursor(trgr_id) is None

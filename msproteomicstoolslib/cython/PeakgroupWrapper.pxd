@@ -19,13 +19,15 @@ cdef extern from "peakgroup.h":
 
         double fdr_score 
         double normalized_retentiontime 
-        libcpp_string internal_id_ 
-        double intensity_
-        double dscore_ 
+        # double intensity_
+        # double dscore_ 
         int cluster_id_
-        c_precursor * precursor
 
+        c_precursor * precursor
         c_precursor * getPeptide()
+
+        libcpp_string getInternalId()
+        void setInternalId(libcpp_string)
 
 
 cdef class CyPeakgroupWrapperOnly(object):

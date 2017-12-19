@@ -33,6 +33,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 $Maintainer: Hannes Roest$
 $Authors: Hannes Roest$
 --------------------------------------------------------------------------
+
+1777320maxresident)k = 1.7 GB of memory to read in 2.3 GB of files!!
+ 
 """
 from __future__ import print_function
 
@@ -51,6 +54,10 @@ from msproteomicstoolslib.algorithms.alignment.AlignmentHelper import write_out_
 from msproteomicstoolslib.algorithms.alignment.SplineAligner import SplineAligner
 from msproteomicstoolslib.algorithms.alignment.FDRParameterEstimation import ParamEst
 from msproteomicstoolslib.algorithms.PADS.MinimumSpanningTree import MinimumSpanningTree
+
+
+e = MRExperiment
+print(dir(e))
 
 class AlignmentStatistics(object):
 
@@ -453,6 +460,11 @@ class Experiment(MRExperiment):
                 myYaml["RawData"].append(this)
             open(yaml_outfile, 'w').write(yaml.dump({"AlignedSwathRuns" : myYaml}))
 
+
+
+e = Experiment
+print(dir(e))
+
 def estimate_aligned_fdr_cutoff(options, this_exp, multipeptides, fdr_range):
     print("Try to find parameters for target fdr %0.2f %%" % (options.target_fdr * 100))
 
@@ -730,15 +742,20 @@ def main(options):
     if optimized_cython:
         print("Provided arguments that allow execution of optimized cython code")
 
+    this_exp = Experiment()
     reader = SWATHScoringReader.newReader(options.infiles, options.file_format,
                                           options.readmethod, readfilter,
                                           enable_isotopic_grouping = not options.disable_isotopic_grouping, 
                                           read_cluster_id = False)
-    runs = reader.parse_files(options.realign_method != "diRT", options.verbosity, optimized_cython)
+    import sys
+    runs = reader.parse_files(options.realign_method != "diRT", options.verbosity, useCython = optimized_cython, exp = this_exp)
+    # 442084maxresident = 440 MB with everything
+    # 140 MB of which are strings in Precursor
+    # 70 MB of which are the PrecursorGroup + 70 MB for the hash
+    # 251272maxresident)k = 250 MB for everything (ca 200 MB of actual data)
 
     # Create experiment
-    this_exp = Experiment()
-    this_exp.set_runs(runs)
+    ## this_exp.set_runs(runs)
     print("Reading the input files took %0.2fs" % (time.time() - start) )
 
     # Map the precursors across multiple runs, determine the number of
@@ -746,6 +763,9 @@ def main(options):
     start = time.time()
     multipeptides = this_exp.get_all_multipeptides(options.fdr_cutoff, verbose=False, verbosity=options.verbosity)
     print("Mapping the precursors took %0.2fs" % (time.time() - start) )
+
+    import adsdddddddddddd
+    sys.exit()
 
     if options.target_fdr > 0:
         multipeptides = doParameterEstimation(options, this_exp, multipeptides)

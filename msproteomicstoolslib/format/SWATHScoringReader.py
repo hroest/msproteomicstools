@@ -39,6 +39,8 @@ from __future__ import print_function
 from sys import stdout, maxsize
 import csv
 
+from msproteomicstoolslib.algorithms.alignment.MRExperiment import MRExperiment
+
 maxInt = maxsize
 decrement = True
 
@@ -119,7 +121,7 @@ class SWATHScoringReader:
         else:
             raise Exception("Unknown filetype '%s', allowed types are %s" % (decoy, str(filetypes) ) )
 
-    def parse_files(self, read_exp_RT=True, verbosity=10, useCython=False):
+    def parse_files(self, read_exp_RT=True, verbosity=10, useCython=False, exp = None):
       """Parse the input file(s) (CSV).
 
       Args:
@@ -136,6 +138,7 @@ class SWATHScoringReader:
       unique run id, we can directly use the previous alignment id.
       """
 
+      if exp is None: exp = MRExperiment()
       print("Parsing input files")
       from sys import stdout
       import csv
@@ -178,7 +181,8 @@ class SWATHScoringReader:
                     aligned_fname = this_row[header_dict[ "align_origfilename"] ]
                 if "filename" in header_dict:
                     orig_fname = this_row[header_dict[ "filename"] ]
-                current_run = Run(header, header_dict, runid, f, orig_fname, aligned_fname, useCython=useCython)
+                current_run = Run(header, header_dict, runid, f, orig_fname, aligned_fname, useCython=useCython, experiment=exp)
+                current_run.int_runid_ = len(runs)
                 runs.append(current_run)
                 print(current_run, "maps to ", orig_fname)
             else: 
@@ -193,6 +197,11 @@ class SWATHScoringReader:
             # Unfortunately, since we are using csv, tell() will not work...
             # print("parse row at", filehandler.tell())
             self.parse_row(current_run, this_row, read_exp_RT)
+            if read > 2:
+                pass
+                # import sys
+                # sys.exit()
+            ## 65324maxreside
 
       # Here we check that each run indeed has a unique id
       assert len(set([r.get_id() for r in runs])) == len(runs) # each run has a unique id
@@ -267,7 +276,9 @@ class OpenSWATH_SWATHScoringReader(SWATHScoringReader):
         unique_peakgroup_id = this_row[run.header_dict[unique_peakgroup_id_name]]
         sequence = this_row[run.header_dict[self.sequence_col]]
         peptide_group_label = trgr_id
+        # 65232maxresident)k         
 
+        # print("xx1")
         if self.peptide_group_label_name in run.header_dict: 
             peptide_group_label = this_row[run.header_dict[self.peptide_group_label_name]]
 
@@ -276,6 +287,8 @@ class OpenSWATH_SWATHScoringReader(SWATHScoringReader):
         fdr_score = -1
         protein_name = "NA"
         thisid = -1
+        # 64984maxresident)k  
+        # here we take 64 MB of memory
         try:
             fdr_score = float(this_row[run.header_dict[fdr_score_name]])
             #fdr_score = 0.0001
@@ -295,20 +308,37 @@ class OpenSWATH_SWATHScoringReader(SWATHScoringReader):
         if "decoy" in run.header_dict:
             decoy = this_row[run.header_dict[decoy_name]]
 
+        
+        # 65064maxresident)k
         # If the peptide does not yet exist, generate it
         if not run.hasPrecursor(peptide_group_label, trgr_id):
+          # print("needs new precusor", peptide_group_label, trgr_id)
           p = self.Precursor(trgr_id, run)
           p.setProteinName(protein_name)
           p.setSequence(sequence)
           p.set_decoy(decoy)
           run.addPrecursor(p, peptide_group_label)
 
+        # only the precursors take 380 MB of memory
+        # 387712maxresident)k               
+
+        ### NOW without any of the good stuff / no strings etc
+        ###  strings in precursor only make 80 MB! 
+        ###  the precursorgroup etc in the run make up 320 MB! 
+        ### 304596maxresident)k   
+
+        # print("now add peakgroup ")
         if self.readmethod == "cminimal":
           peakgroup_tuple = (thisid, fdr_score, diff_from_assay_seconds, intensity, d_score)
           run.getPrecursor(peptide_group_label, trgr_id).add_peakgroup_tpl(peakgroup_tuple, unique_peakgroup_id, cluster_id)
+          # adding peakgrup
+          # all the peakgroups add 60 MB
+          # 442596maxresident)k                 
         elif self.readmethod == "minimal":
           peakgroup_tuple = (thisid, fdr_score, diff_from_assay_seconds, intensity, d_score)
           run.getPrecursor(peptide_group_label, trgr_id).add_peakgroup_tpl(peakgroup_tuple, unique_peakgroup_id, cluster_id)
+          # adding peakgrup
+          # 541632maxresident)k
         elif self.readmethod == "gui":
           leftWidth = this_row[run.header_dict[left_width_name]]
           assay_rt = this_row[run.header_dict["assay_rt"]]
@@ -317,6 +347,8 @@ class OpenSWATH_SWATHScoringReader(SWATHScoringReader):
           peakgroup = self.PeakGroup(fdr_score, intensity, leftWidth, rightWidth, assay_rt, run.getPrecursor(peptide_group_label, trgr_id))
           peakgroup.charge = charge
           run.getPrecursor(peptide_group_label, trgr_id).add_peakgroup(peakgroup)
+          # adding peakgrup
+          # 642084maxresident)k         
         elif self.readmethod == "complete":
           peakgroup = self.PeakGroup(this_row, run, run.getPrecursor(peptide_group_label, trgr_id))
           peakgroup.set_normalized_retentiontime(diff_from_assay_seconds)

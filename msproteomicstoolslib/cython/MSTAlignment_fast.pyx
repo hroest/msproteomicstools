@@ -651,7 +651,7 @@ cdef libcpp_pair[double, c_peakgroup*] static_cy_findBestPGFromTemplate(double e
         while pg_it != cypr.get_all_peakgroups_cy_end():
             if abs(deref(pg_it).normalized_retentiontime - expected_rt) < maximal_rt_diff:
                 if deref(pg_it).fdr_score < settings.aligned_fdr_cutoff:
-                    id_string = deref(pg_it).internal_id_ + deref(pep).curr_id_
+                    id_string = deref(pg_it).getInternalId() + deref(pep).curr_id_
                     if already_seen.find(id_string) == already_seen.end():
                         matching_pg.push_back( address(deref(pg_it) ))
             inc(pg_it)

@@ -1,2 +1,2 @@
-__all__ = ["LinearRegression", "Smoothing"]
+__all__ = ["LinearRegression", "Smoothing", "chauvenet"]
 
