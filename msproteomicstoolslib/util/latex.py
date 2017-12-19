@@ -83,7 +83,7 @@ def get_latex_row(arr):
     return mystr[:-2] + '\\\\'
 
 
-latex_headers = """
+latex_headers = b"""
 \documentclass[pdftex, a4paper, landscape, 12pt, halfparskip, idxtotoc]{scrartcl}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}

@@ -16,6 +16,7 @@ credits:
 ------------------------------------------------------------------------------
 Usage: from progressmeter import ProgressMeter
 '''
+from __future__ import print_function
 
 import sys
 import time
@@ -207,7 +208,7 @@ if __name__ == '__main__':
 
     import random
 
-    print "this is a test of method ProgressMeter.update"
+    print ("this is a test of method ProgressMeter.update")
 
     total=5000
     pba = ProgressMeter(total=total,unit='apples')
@@ -217,7 +218,7 @@ if __name__ == '__main__':
         total -= cnt
         time.sleep(random.uniform(.25,0.75))
 
-    print "this is a test of method ProgressMeter.set"
+    print ("this is a test of method ProgressMeter.set")
 
     pct = 0
     pbb = ProgressMeter(total=997,unit='oranges',ticks=80)
@@ -226,7 +227,7 @@ if __name__ == '__main__':
         pbb.set(pct)
         time.sleep(random.uniform(.25,0.75))
 
-    print "this is a test of method ProgressMeter.reset and ProgressMeter.start and ProgressMeter.set(100)"
+    print ("this is a test of method ProgressMeter.reset and ProgressMeter.start and ProgressMeter.set(100)")
 
     pct = 0
     pbb.reset(unit='bananas',ticks=40)
@@ -243,9 +244,9 @@ if __name__ == '__main__':
     pbb.set(110)
     pbb.update(100000)
 
-    print "this is a test message"
-    print "the program will shutdown automatically"
+    print ("this is a test message")
+    print ("the program will shutdown automatically")
     time.sleep(5)
-    print "shutting down"
+    print ("shutting down")
     time.sleep(0.15)
     sys.exit()
