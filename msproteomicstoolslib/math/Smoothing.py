@@ -435,13 +435,9 @@ class LowessSmoothingStatsmodels(LowessSmoothingBase):
         pass
 
     def _initialize(self, data1, data2):
-        try:
+        if True:
             import statsmodels.api as sm
             lowess = sm.nonparametric.lowess
-        except ImportError:
-            print("===================================")
-            print("Cannot import the module lowess from 'statsmodels', \nplease install the Python package 'statsmodels'")
-            print("===================================")
 
         # NOTE: delta parameter is only available from statsmodels > 0.5.0
         delta = (max(data1) - min(data1)) * 0.01
